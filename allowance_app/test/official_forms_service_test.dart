@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:allowance_app/models/claim_data.dart';
-import 'package:allowance_app/models/master_data.dart';
-import 'package:allowance_app/models/movement.dart';
-import 'package:allowance_app/services/official_forms_service.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/models/movement.dart';
+import 'package:allowance_shared/services/official_forms_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

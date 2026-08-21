@@ -7,11 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../models/claim_data.dart';
-import '../models/master_data.dart';
-import '../services/allowance_calculator.dart';
-import '../services/drive_service.dart';
-import '../theme/modern_theme.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
+import 'package:allowance_app/services/drive_service.dart';
+import 'package:allowance_shared/theme/modern_theme.dart';
 import 'attendance_screen.dart';
 import 'claim_summary_screen.dart';
 import 'movement_screen.dart';

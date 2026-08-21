@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/claim_data.dart';
-import '../models/master_data.dart';
-import '../models/movement.dart';
-import '../services/allowance_calculator.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/models/movement.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final ClaimData claimData;

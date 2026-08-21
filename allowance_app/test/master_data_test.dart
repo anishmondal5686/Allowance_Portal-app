@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:allowance_app/models/master_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
 
 void main() {
   group('MasterData.parseMonthYear', () {

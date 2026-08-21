@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:printing/printing.dart';
 
-import '../models/claim_data.dart';
-import '../services/official_forms_service.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/services/official_forms_service.dart';
 
 class OfficialFormsScreen extends StatelessWidget {
   final ClaimData claimData;

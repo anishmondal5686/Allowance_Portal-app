@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:allowance_app/models/claim_data.dart';
+import 'package:allowance_shared/models/claim_data.dart';
 
 void main() {
   group('ClaimData.fromJson legacy movement merge', () {

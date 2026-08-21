@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'models/claim_data.dart';
-import 'services/drive_service.dart';
-import 'services/theme_store.dart';
-import 'theme/modern_theme.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_app/services/drive_service.dart';
+import 'package:allowance_shared/services/theme_store.dart';
+import 'package:allowance_shared/theme/modern_theme.dart';
 import 'screens/dashboard_screen.dart';
 
 void main() {

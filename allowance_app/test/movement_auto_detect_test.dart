@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:allowance_app/models/claim_data.dart';
-import 'package:allowance_app/models/master_data.dart';
-import 'package:allowance_app/models/movement.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app/screens/movement_screen.dart';
 
 void main() {

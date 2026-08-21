@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:allowance_app/models/claim_data.dart';
-import 'package:allowance_app/models/master_data.dart';
-import 'package:allowance_app/models/movement.dart';
-import 'package:allowance_app/services/allowance_calculator.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/models/movement.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
 
 void main() {
   test('generate 50 fake movements and report the computed summary', () async {

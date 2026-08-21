@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../models/claim_data.dart';
-import '../models/master_data.dart';
-import '../services/allowance_calculator.dart';
-import '../services/claim_print_service.dart';
-import '../services/official_forms_service.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
+import 'package:allowance_shared/services/claim_print_service.dart';
+import 'package:allowance_shared/services/official_forms_service.dart';
 import 'official_forms_screen.dart';
 
 class ClaimSummaryScreen extends StatefulWidget {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:allowance_app/models/claim_data.dart';
-import 'package:allowance_app/models/master_data.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_app/screens/dashboard_screen.dart';
 import 'package:allowance_app/services/drive_service.dart';
-import 'package:allowance_app/theme/modern_theme.dart';
+import 'package:allowance_shared/theme/modern_theme.dart';
 
 void main() {
   testWidgets('employee field label is DPS No. for DOCK PILOT and ADM, '

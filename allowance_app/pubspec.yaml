@@ -21,6 +21,8 @@ dependencies:
   pdf: ^3.12.0
   printing: ^5.14.3
   pdfx: ^2.9.2
+  allowance_shared:
+    path: ../shared
 
 dev_dependencies:
   flutter_test:

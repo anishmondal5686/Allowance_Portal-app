@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
-import '../models/claim_data.dart';
-import '../models/master_data.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
 
 /// Local-only persistence for the app. Data is saved on the device in the
 /// app's documents directory; nothing is uploaded anywhere.

@@ -1,0 +1,43 @@
+{
+  "project_info": {
+    "project_number": "486404217110",
+    "project_id": "allowance-portal-android",
+    "storage_bucket": "allowance-portal-android.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:486404217110:android:0000000000000000",
+        "android_client_info": {
+          "package_name": "com.allowance.allowance_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "486404217110-p04d8438jti6bagcc1kp4s8lrvedt3t7.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "486404217110-t52p2pul2n3sg5ier2b0acse2cst2s5p.apps.googleusercontent.com",
+          "client_type": 1
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": ""
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "486404217110-t52p2pul2n3sg5ier2b0acse2cst2s5p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

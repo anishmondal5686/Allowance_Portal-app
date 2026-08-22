@@ -736,5 +736,11 @@ void main() {
       expect(AllowanceCalculator.movementShiftDate(mEarlyMorning, attShifts: {'2026-8-24': 'M'}), '2026-8-24');
       expect(AllowanceCalculator.movementShiftDate(mEarlyMorning), '2026-8-23');
     });
+
+    test('movementShiftDate attributes 05:45 AM movement to previous night shift if previous day was N', () {
+      final mEarlyMorning = Movement(date: '23/08/2026', start: '05:45', end: '08:00');
+      expect(AllowanceCalculator.movementShiftDate(mEarlyMorning, attShifts: {'2026-8-22': 'N', '2026-8-23': 'M'}), '2026-8-22');
+      expect(AllowanceCalculator.movementShiftDate(mEarlyMorning, attShifts: {'2026-8-22': 'OFF', '2026-8-23': 'M'}), '2026-8-23');
+    });
   });
 }

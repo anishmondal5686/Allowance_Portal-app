@@ -730,5 +730,11 @@ void main() {
       final mDayShift = Movement(date: '24/08/2026', start: '09:00', end: '11:00');
       expect(AllowanceCalculator.movementShiftDate(mDayShift), '2026-8-24');
     });
+
+    test('movementShiftDate respects user attendance when movement starts 05:30-05:59 AM', () {
+      final mEarlyMorning = Movement(date: '24/08/2026', start: '05:45', end: '08:00');
+      expect(AllowanceCalculator.movementShiftDate(mEarlyMorning, attShifts: {'2026-8-24': 'M'}), '2026-8-24');
+      expect(AllowanceCalculator.movementShiftDate(mEarlyMorning), '2026-8-23');
+    });
   });
 }

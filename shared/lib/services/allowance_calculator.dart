@@ -113,15 +113,23 @@ class AllowanceCalculator {
     return '${dt.year}-${dt.month}-${dt.day}';
   }
 
-  /// Calendar-date key of the night shift [m] belongs to. A night shift runs
-  /// 22:00 on its date to 06:00 the next day, so movements starting before
-  /// 06:00 are attributed to the previous date's shift.
-  static String movementShiftDate(Movement m) {
+  /// Calendar-date key of the shift [m] belongs to. A night shift runs
+  /// 22:00 on its date to 06:00 the next day. Movements starting before
+  /// 05:30 are attributed to the previous date's night shift. Movements
+  /// between 05:30 and 06:00 respect the user's attendance shift choice if 'M' or 'E'.
+  static String movementShiftDate(Movement m, {Map<String, String>? attShifts}) {
     final dk = normDateKey(m.date.trim());
     if (dk.isEmpty) return dk;
     final sMin = _parseTimeStrict(m.start);
     if (sMin == null) return dk;
-    if (sMin < 360) return prevDateKey(dk);
+    if (sMin < 330) return prevDateKey(dk);
+    if (sMin < 360) {
+      if (attShifts != null) {
+        final att = attShifts[dk];
+        if (att == 'M' || att == 'E') return dk;
+      }
+      return prevDateKey(dk);
+    }
     return dk;
   }
 

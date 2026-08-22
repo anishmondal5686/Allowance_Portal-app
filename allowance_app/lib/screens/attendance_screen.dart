@@ -287,7 +287,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     for (final m in widget.claimData.movements) {
       if (m.date.trim().isEmpty || m.start.trim().isEmpty) continue;
-      final shiftKey = AllowanceCalculator.movementShiftDate(m);
+      final shiftKey = AllowanceCalculator.movementShiftDate(m, attShifts: widget.claimData.attShifts);
       if (shiftKey.isEmpty) continue;
       final parts = shiftKey.split('-');
       if (parts.length != 3) continue;

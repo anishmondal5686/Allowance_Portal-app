@@ -707,5 +707,17 @@ void main() {
       final coldLine = summary.lines.firstWhere((l) => l.key == 'cold');
       expect(coldLine.amount, 160);
     });
+
+    test('night weightage is excluded for incomplete night shifts (before 06:00 AM next day)', () {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final tomorrowKey = '${tomorrow.year}-${tomorrow.month}-${tomorrow.day}';
+      final minutes = AllowanceCalculator.calcNightWeightageMinutes(
+        movements: [],
+        attShifts: {tomorrowKey: 'N'},
+        locked: true,
+        fullNights: true,
+      );
+      expect(minutes, 0);
+    });
   });
 }

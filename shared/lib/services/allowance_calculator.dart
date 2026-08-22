@@ -339,9 +339,13 @@ class AllowanceCalculator {
   static bool _isFutureKey(String dk) {
     final p = dk.split('-');
     if (p.length != 3 || p.any((e) => int.tryParse(e) == null)) return false;
-    final dt = DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
-    final now = DateTime.now();
-    return dt.isAfter(DateTime(now.year, now.month, now.day));
+    final y = int.parse(p[0]);
+    final m = int.parse(p[1]);
+    final d = int.parse(p[2]);
+    // Night shift for date (y, m, d) runs 22:00 -> 06:00 (y, m, d+1).
+    // The shift is only complete after 06:00 AM on the next calendar day.
+    final shiftEnd = DateTime(y, m, d + 1, 6, 0);
+    return DateTime.now().isBefore(shiftEnd);
   }
 
   static int calcNightWeightageMinutes({

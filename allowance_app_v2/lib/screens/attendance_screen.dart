@@ -282,21 +282,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final wasLocked = widget.claimData.attLocked;
     if (wasLocked) widget.claimData.attLocked = false;
     final byDate = <String, List<Movement>>{};
+    final now = DateTime.now();
+    final todayDt = DateTime(now.year, now.month, now.day);
+
     for (final m in widget.claimData.movements) {
-      if (m.date.isEmpty) continue;
-      final parts = m.date.trim().split(RegExp(r'[\/.\-]'));
-      if (parts.length < 2) continue;
-      final d = int.tryParse(parts[0]);
+      if (m.date.trim().isEmpty || m.start.trim().isEmpty) continue;
+      final shiftKey = AllowanceCalculator.movementShiftDate(m);
+      if (shiftKey.isEmpty) continue;
+      final parts = shiftKey.split('-');
+      if (parts.length != 3) continue;
+      final y = int.tryParse(parts[0]);
       final mo = int.tryParse(parts[1]);
-      if (d == null || mo == null) continue;
-      var y = _currentYear;
-      if (parts.length > 2) {
-        final yv = int.tryParse(parts[2]);
-        if (yv != null) y = parts[2].length == 2 ? 2000 + yv : yv;
-      }
+      final d = int.tryParse(parts[2]);
+      if (y == null || mo == null || d == null) continue;
       if (y != _currentYear || mo != _currentMonth) continue;
-      final key = '$y-$mo-$d';
-      byDate.putIfAbsent(key, () => []).add(m);
+
+      // Do NOT auto-mark attendance for future shift dates
+      final shiftDate = DateTime(y, mo, d);
+      if (shiftDate.isAfter(todayDt)) continue;
+
+      byDate.putIfAbsent(shiftKey, () => []).add(m);
     }
     bool overlaps(String start, String end, int wS, int wE) {
       final s = AllowanceCalculator.parseTimeMinutes(start);

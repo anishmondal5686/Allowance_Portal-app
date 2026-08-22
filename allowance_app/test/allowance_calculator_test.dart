@@ -719,5 +719,16 @@ void main() {
       );
       expect(minutes, 0);
     });
+
+    test('movementShiftDate correctly attributes post-midnight movements (<06:00 AM) to previous shift date', () {
+      final mPostMidnight = Movement(date: '24/08/2026', start: '01:30', end: '03:00');
+      expect(AllowanceCalculator.movementShiftDate(mPostMidnight), '2026-8-23');
+
+      final mNightStart = Movement(date: '23/08/2026', start: '22:30', end: '23:45');
+      expect(AllowanceCalculator.movementShiftDate(mNightStart), '2026-8-23');
+
+      final mDayShift = Movement(date: '24/08/2026', start: '09:00', end: '11:00');
+      expect(AllowanceCalculator.movementShiftDate(mDayShift), '2026-8-24');
+    });
   });
 }

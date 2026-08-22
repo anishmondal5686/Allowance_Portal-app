@@ -826,17 +826,17 @@ class OfficialFormsService {
     return doc.save();
   }
 
-  /// True when [dk] (`yyyy-M-d` key) is a night shift date that is not yet completed
-  /// (night shift ends at 06:00 AM the morning after the shift date).
+  /// True when [dk] (`yyyy-M-d` key) belongs to a future month after the current month.
   static bool _isFutureKey(String dk) {
     final p = dk.split('-');
     if (p.length != 3) return false;
     final y = int.tryParse(p[0]) ?? 0;
     final m = int.tryParse(p[1]) ?? 0;
-    final d = int.tryParse(p[2]) ?? 0;
-    if (y == 0 || m == 0 || d == 0) return false;
-    final shiftEnd = DateTime(y, m, d + 1, 6, 0);
-    return DateTime.now().isBefore(shiftEnd);
+    if (y == 0 || m == 0) return false;
+    final now = DateTime.now();
+    final currentMonthStart = DateTime(now.year, now.month, 1);
+    final dtMonthStart = DateTime(y, m, 1);
+    return dtMonthStart.isAfter(currentMonthStart);
   }
 
   /// Normalized date keys for dates the person acted as ADM.

@@ -348,16 +348,16 @@ class AllowanceCalculator {
     );
   }
 
+  /// True when [dk] (`yyyy-M-d` key) belongs to a future month after the current month.
   static bool _isFutureKey(String dk) {
     final p = dk.split('-');
     if (p.length != 3 || p.any((e) => int.tryParse(e) == null)) return false;
     final y = int.parse(p[0]);
     final m = int.parse(p[1]);
-    final d = int.parse(p[2]);
-    // Night shift for date (y, m, d) runs 22:00 -> 06:00 (y, m, d+1).
-    // The shift is only complete after 06:00 AM on the next calendar day.
-    final shiftEnd = DateTime(y, m, d + 1, 6, 0);
-    return DateTime.now().isBefore(shiftEnd);
+    final now = DateTime.now();
+    final currentMonthStart = DateTime(now.year, now.month, 1);
+    final dtMonthStart = DateTime(y, m, 1);
+    return dtMonthStart.isAfter(currentMonthStart);
   }
 
   static int calcNightWeightageMinutes({

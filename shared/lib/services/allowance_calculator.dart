@@ -530,6 +530,24 @@ class AllowanceCalculator {
     return shift;
   }
 
+  /// Strips future dates (after today) from [shifts] so they are not treated
+  /// as confirmed attendance — they will be shown as roster predictions instead.
+  static Map<String, String> pruneFutureShifts(Map<String, String> shifts) {
+    final now = DateTime.now();
+    final todayDt = DateTime(now.year, now.month, now.day);
+    final out = <String, String>{};
+    shifts.forEach((key, val) {
+      final p = key.split('-');
+      if (p.length != 3) { out[key] = val; return; }
+      final y = int.tryParse(p[0]);
+      final mo = int.tryParse(p[1]);
+      final d = int.tryParse(p[2]);
+      if (y == null || mo == null || d == null) { out[key] = val; return; }
+      if (!DateTime(y, mo, d).isAfter(todayDt)) out[key] = val;
+    });
+    return out;
+  }
+
   /// Fills in the weekly attendance roster for [year]/[month] exactly like the
   /// webapp: off days become 'OFF', all other missing dates get the rotation
   /// shift (M/E/N) advancing by calendar week. Existing entries are preserved.

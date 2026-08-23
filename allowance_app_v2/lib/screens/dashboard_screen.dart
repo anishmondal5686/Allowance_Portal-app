@@ -242,14 +242,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       widget.claimData.attOffDay = data.attOffDay;
       widget.claimData.attRotation = data.attRotation;
       final parsed = MasterData.parseMonthYear(data.master.month);
-      widget.claimData.attShifts = parsed == null
-          ? data.attShifts
-          : AllowanceCalculator.fillRoster(
-              year: parsed.$1,
-              month: parsed.$2,
-              offDay: data.attOffDay,
-              rotation: data.attRotation,
-              existing: data.attShifts);
+      widget.claimData.attShifts = AllowanceCalculator.pruneFutureShifts(
+          parsed == null
+              ? data.attShifts
+              : AllowanceCalculator.fillRoster(
+                  year: parsed.$1,
+                  month: parsed.$2,
+                  offDay: data.attOffDay,
+                  rotation: data.attRotation,
+                  existing: data.attShifts));
       _applyMaster(data.master);
       widget.onDataChanged();
       if (mounted) setState(() {});

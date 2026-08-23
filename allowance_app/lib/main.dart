@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_app/services/drive_service.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/services/theme_store.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'screens/dashboard_screen.dart';
@@ -50,7 +51,7 @@ class _AllowanceAppState extends State<AllowanceApp> {
         _claimData.master = local.master;
         _claimData.movements.clear();
         _claimData.movements.addAll(local.movements);
-        _claimData.attShifts = local.attShifts;
+        _claimData.attShifts = AllowanceCalculator.pruneFutureShifts(local.attShifts);
         _claimData.attManualDates = local.attManualDates;
         _claimData.attLocked = local.attLocked;
         _claimData.attOffDay = local.attOffDay;

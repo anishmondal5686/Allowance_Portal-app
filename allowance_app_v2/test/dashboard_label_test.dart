@@ -18,6 +18,7 @@ void main() {
             onDataChanged: () {},
             themeId: ModernThemeId.modernMarine,
             onThemeChanged: (_) {},
+            appVersion: '2.0.0',
           ),
         ),
       ));

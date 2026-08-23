@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/services/allowance_calculator.dart';
+import 'package:allowance_shared/services/update_service.dart';
 import 'package:allowance_app_v2/services/local_store.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'attendance_screen.dart';
@@ -31,6 +33,7 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback onDataChanged;
   final ModernThemeId themeId;
   final ValueChanged<ModernThemeId> onThemeChanged;
+  final String appVersion;
 
   const DashboardScreen({
     super.key,
@@ -38,6 +41,7 @@ class DashboardScreen extends StatefulWidget {
     required this.onDataChanged,
     required this.themeId,
     required this.onThemeChanged,
+    required this.appVersion,
   });
 
   @override
@@ -88,6 +92,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _billCtrl = TextEditingController(text: m.bill);
     _basicCtrl = TextEditingController(text: m.basic);
     _adaCtrl = TextEditingController(text: m.ada);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  Future<void> _checkForUpdate() async {
+    final info = await UpdateService.checkForUpdate(widget.appVersion);
+    if (!mounted || info == null) return;
+    _showUpdateDialog(info);
+  }
+
+  void _showUpdateDialog(UpdateInfo info) {
+    final scheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        icon: Icon(Icons.system_update, color: scheme.primary, size: 36),
+        title: Text('Update Available'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Version ${info.latestVersion}',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 8),
+            if (info.body.isNotEmpty)
+              Text(info.body, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            for (final a in info.assets)
+              Text('${a.name} (${(a.sizeBytes / 1048576).toStringAsFixed(1)} MB)',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Later')),
+          FilledButton.icon(
+            icon: const Icon(Icons.download, size: 16),
+            label: const Text('Download'),
+            onPressed: () async {
+              Navigator.pop(context);
+              final uri = Uri.parse(info.releaseUrl);
+              // ignore: deprecated_member_use
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override

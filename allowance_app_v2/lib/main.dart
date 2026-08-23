@@ -18,6 +18,7 @@ class AllowanceApp extends StatefulWidget {
 }
 
 class _AllowanceAppState extends State<AllowanceApp> {
+  static const _appVersion = '2.0.0';
   final ClaimData _claimData = ClaimData();
   final LocalStore _localStore = LocalStore();
   final ThemeStore _themeStore = ThemeStore();
@@ -83,6 +84,7 @@ class _AllowanceAppState extends State<AllowanceApp> {
               onDataChanged: _onDataChanged,
               themeId: _themeId,
               onThemeChanged: _onThemeChanged,
+              appVersion: _appVersion,
             ),
     );
   }

@@ -70,10 +70,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       rotation: widget.claimData.attRotation,
       existing: before,
     );
-    final added = filled.length > before.length;
+    final now = DateTime.now();
+    final todayDt = DateTime(now.year, now.month, now.day);
+
+    final pruned = <String, String>{};
+    filled.forEach((key, val) {
+      final p = key.split('-');
+      if (p.length != 3) return;
+      final y = int.tryParse(p[0]);
+      final mo = int.tryParse(p[1]);
+      final d = int.tryParse(p[2]);
+      if (y == null || mo == null || d == null) return;
+      final dt = DateTime(y, mo, d);
+      if (!dt.isAfter(todayDt) || before.containsKey(key)) {
+        pruned[key] = val;
+      }
+    });
+
+    final added = pruned.length > before.length;
     widget.claimData.attShifts
       ..clear()
-      ..addAll(filled);
+      ..addAll(pruned);
     return added;
   }
 
@@ -127,10 +144,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   String _dateKey(DateTime dt) => '${dt.year}-${dt.month}-${dt.day}';
 
-  String _shiftForDate(DateTime dt) {
+  ({String code, bool isPredicted}) _shiftForDateInfo(DateTime dt) {
     final key = _dateKey(dt);
-    return widget.claimData.attShifts[key] ?? '';
+    if (widget.claimData.attShifts.containsKey(key)) {
+      return (code: widget.claimData.attShifts[key]!, isPredicted: false);
+    }
+    final now = DateTime.now();
+    final todayDt = DateTime(now.year, now.month, now.day);
+    if (dt.isAfter(todayDt)) {
+      final pred = AllowanceCalculator.predictRosterShift(
+        dt: dt,
+        offDay: widget.claimData.attOffDay,
+        rotation: widget.claimData.attRotation,
+      );
+      if (pred.isNotEmpty) return (code: pred, isPredicted: true);
+    }
+    return (code: '', isPredicted: false);
   }
+
+  String _shiftForDate(DateTime dt) => _shiftForDateInfo(dt).code;
 
   Color _shiftColor(String code, ColorScheme scheme) {
     switch (code) {
@@ -580,7 +612,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 final dt = days[index];
                 final isCurrentMonthDay =
                     dt.year == _currentYear && dt.month == _currentMonth;
-                final shift = _shiftForDate(dt);
+                final info = _shiftForDateInfo(dt);
+                final shift = info.code;
+                final isPredicted = info.isPredicted;
                 final key = _dateKey(dt);
                 final isManual =
                     widget.claimData.attManualDates.contains(key);
@@ -598,12 +632,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ? (isCurrentMonthDay
                               ? scheme.surfaceContainerHigh.withValues(alpha: 0.5)
                               : Colors.transparent)
-                          : _shiftColor(shift, scheme),
+                          : (isPredicted
+                              ? _shiftColor(shift, scheme).withValues(alpha: 0.08)
+                              : _shiftColor(shift, scheme)),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isManual
                             ? scheme.primary
-                            : scheme.outlineVariant.withValues(alpha: 0.4),
+                            : (isPredicted
+                                ? scheme.outlineVariant.withValues(alpha: 0.25)
+                                : scheme.outlineVariant.withValues(alpha: 0.4)),
                         width: isManual ? 1.8 : 0.5,
                       ),
                     ),

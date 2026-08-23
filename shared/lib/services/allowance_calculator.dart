@@ -509,6 +509,27 @@ class AllowanceCalculator {
     return out;
   }
 
+  /// Returns the predicted roster shift ('OFF', 'N', 'E', 'M') for [dt]
+  /// based on the claimant's [offDay] and starting [rotation].
+  static String predictRosterShift({
+    required DateTime dt,
+    required String offDay,
+    required String rotation,
+  }) {
+    if (offDay.isEmpty && rotation.isEmpty) return '';
+    final offDayNum = offDay.isNotEmpty ? int.tryParse(offDay) : null;
+    final dow = dt.weekday % 7;
+    if (offDayNum != null && dow == offDayNum) return 'OFF';
+    if (rotation.isEmpty) return '';
+    const rot = {'N': 'E', 'E': 'M', 'M': 'N'};
+    final weekIndex = (dt.day - 1) ~/ 7;
+    var shift = rotation;
+    for (var w = 0; w < weekIndex; w++) {
+      shift = rot[shift] ?? shift;
+    }
+    return shift;
+  }
+
   /// Fills in the weekly attendance roster for [year]/[month] exactly like the
   /// webapp: off days become 'OFF', all other missing dates get the rotation
   /// shift (M/E/N) advancing by calendar week. Existing entries are preserved.

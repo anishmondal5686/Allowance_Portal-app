@@ -100,7 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _checkForUpdate() async {
-    final info = await UpdateService.checkForUpdate(widget.appVersion);
+    final info = await UpdateService.checkForUpdate(widget.appVersion, appVariant: 'v1');
     if (!mounted || info == null) return;
     _showUpdateDialog(info);
   }

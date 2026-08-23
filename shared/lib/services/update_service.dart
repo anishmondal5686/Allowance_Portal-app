@@ -28,7 +28,8 @@ class UpdateService {
 
   /// Checks GitHub for the latest release. Returns null if no update available
   /// or if the network request fails.
-  static Future<UpdateInfo?> checkForUpdate(String currentVersion) async {
+  /// [appVariant] filters assets: 'v1' shows only v1 APK, 'v2' shows only v2 APK.
+  static Future<UpdateInfo?> checkForUpdate(String currentVersion, {String? appVariant}) async {
     try {
       final response = await http.get(
         Uri.parse('https://api.github.com/repos/$_repo/releases/latest'),
@@ -51,6 +52,8 @@ class UpdateService {
       for (final a in assetsList) {
         final name = (a['name'] as String?) ?? '';
         if (!name.endsWith('.apk')) continue;
+        if (appVariant == 'v1' && !name.contains('v1')) continue;
+        if (appVariant == 'v2' && !name.contains('v2')) continue;
         assets.add(UpdateAsset(
           name: name,
           downloadUrl: (a['browser_download_url'] as String?) ?? '',

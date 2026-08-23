@@ -576,9 +576,7 @@ class OfficialFormsService {
             m.hasAllowance('nightact') &&
             !acting.contains(AllowanceCalculator.movementShiftDate(m)))
         .toList();
-    final gaps = data.attLocked
-        ? _nightWeightageGaps(data)
-        : <({String date, int s, int e})>[];
+    final gaps = _nightWeightageGaps(data);
     final pages = math.max(
         1,
         math.max((acts.length / 10).ceil(), (gaps.length / 15).ceil()));
@@ -712,9 +710,7 @@ class OfficialFormsService {
 
   static Future<Uint8List> _buildNightWeightageAdm(ClaimData data, _Fonts f) {
     final doc = pw.Document();
-    final gaps = data.attLocked
-        ? _nightWeightageGaps(data, admDuty: true)
-        : <({String date, int s, int e})>[];
+    final gaps = _nightWeightageGaps(data, admDuty: true);
     final pages = math.max(1, (gaps.length / 10).ceil());
     final m = data.master;
     for (var p = 0; p < pages; p++) {

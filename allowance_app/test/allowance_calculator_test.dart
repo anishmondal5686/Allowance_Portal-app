@@ -435,9 +435,13 @@ void main() {
       expect(summary.payWarning, isTrue);
     });
 
-    test('skips weightage when attendance is not locked', () {
+    test('night weightage always shows based on confirmed shifts regardless of lock', () {
       final data = ClaimData(
-        master: MasterData(pay: '100000'),
+        master: MasterData(
+          pay: '100000',
+          designation: 'BERTHING PILOT',
+          month: 'AUGUST, 2026',
+        ),
       );
       data.attShifts['2026-8-10'] = 'N';
       data.movements.add(Movement(
@@ -447,15 +451,8 @@ void main() {
           loa: '180',
           allowance: 'nightact'));
       final summary = AllowanceCalculator.computeSummary(data);
-      expect(summary.lines.any((l) => l.key == 'weightage'), isFalse);
-      expect(summary.payWarning, isFalse);
-      expect(
-        AllowanceCalculator.calcNightWeightageMinutes(
-            movements: data.movements,
-            attShifts: data.attShifts,
-            locked: false),
-        0,
-      );
+      expect(summary.lines.any((l) => l.key == 'weightage'), isTrue);
+      expect(summary.nightWeightageHours, greaterThan(0));
     });
 
     test('ADM night weightage is credited as hours, not an amount', () {
@@ -714,7 +711,6 @@ void main() {
       final minutes = AllowanceCalculator.calcNightWeightageMinutes(
         movements: [],
         attShifts: {futureKey: 'N'},
-        locked: true,
         fullNights: true,
       );
       expect(minutes, 0);

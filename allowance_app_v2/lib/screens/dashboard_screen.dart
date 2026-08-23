@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
@@ -102,41 +101,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showUpdateDialog(UpdateInfo info) {
-    final scheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        icon: Icon(Icons.system_update, color: scheme.primary, size: 36),
-        title: Text('Update Available'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Version ${info.latestVersion}',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 8),
-            if (info.body.isNotEmpty)
-              Text(info.body, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
-            for (final a in info.assets)
-              Text('${a.name} (${(a.sizeBytes / 1048576).toStringAsFixed(1)} MB)',
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Later')),
-          FilledButton.icon(
-            icon: const Icon(Icons.download, size: 16),
-            label: const Text('Download'),
-            onPressed: () async {
-              Navigator.pop(context);
-              final uri = Uri.parse(info.releaseUrl);
-              // ignore: deprecated_member_use
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            },
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (_) => _UpdateDialog(info: info),
     );
   }
 
@@ -967,6 +935,114 @@ class _SunTimeItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _UpdateDialog extends StatefulWidget {
+  final UpdateInfo info;
+  const _UpdateDialog({required this.info});
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  double? _progress;
+  bool _downloading = false;
+  String? _error;
+
+  static const _channel = MethodChannel('com.allowance.app/install');
+
+  Future<void> _downloadAndInstall() async {
+    setState(() {
+      _downloading = true;
+      _progress = 0;
+      _error = null;
+    });
+
+    try {
+      final asset = widget.info.assets.first;
+      final path = await UpdateService.downloadApk(
+        asset,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+      );
+
+      if (!mounted) return;
+      setState(() => _progress = 1.0);
+
+      await _channel.invokeMethod('installApk', {'path': path});
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Download failed: $e';
+          _downloading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      icon: Icon(
+        _downloading ? Icons.system_update_alt : Icons.system_update,
+        color: scheme.primary,
+        size: 36,
+      ),
+      title: const Text('Update Available'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Version ${widget.info.latestVersion}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          const SizedBox(height: 8),
+          if (widget.info.body.isNotEmpty)
+            Text(widget.info.body,
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 12),
+          for (final a in widget.info.assets)
+            Text('${a.name} (${(a.sizeBytes / 1048576).toStringAsFixed(1)} MB)',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          if (_downloading) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(value: _progress),
+            const SizedBox(height: 8),
+            Text(
+              _progress != null && _progress! >= 1.0
+                  ? 'Download complete. Opening installer...'
+                  : 'Downloading... ${(_progress != null ? _progress! * 100 : 0).toStringAsFixed(0)}%',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(fontSize: 12, color: scheme.error)),
+          ],
+        ],
+      ),
+      actions: [
+        if (!_downloading)
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+        if (!_downloading)
+          FilledButton.icon(
+            icon: const Icon(Icons.download, size: 16),
+            label: const Text('Install Update'),
+            onPressed: _downloadAndInstall,
+          ),
+        if (_downloading && _error != null)
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+      ],
     );
   }
 }

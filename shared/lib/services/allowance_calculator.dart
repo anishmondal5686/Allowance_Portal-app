@@ -363,11 +363,9 @@ class AllowanceCalculator {
   static int calcNightWeightageMinutes({
     required List<Movement> movements,
     required Map<String, String> attShifts,
-    bool locked = true,
     bool fullNights = false,
     Set<String> actingAdmDates = const {},
   }) {
-    if (!locked) return 0;
     final nDates = <String>{};
     attShifts.forEach((dateKey, shift) {
       if (shift == 'N') nDates.add(normDateKey(dateKey));
@@ -432,9 +430,7 @@ class AllowanceCalculator {
   static bool hasWeightage({
     required List<Movement> movements,
     required Map<String, String> attShifts,
-    bool locked = true,
   }) {
-    if (!locked) return false;
     return attShifts.values.contains('N');
   }
 
@@ -442,15 +438,12 @@ class AllowanceCalculator {
     required double pay,
     required List<Movement> movements,
     required Map<String, String> attShifts,
-    bool locked = true,
     bool fullNights = false,
     Set<String> actingAdmDates = const {},
   }) {
-    if (!locked) return 0;
     final minutes = calcNightWeightageMinutes(
         movements: movements,
         attShifts: attShifts,
-        locked: locked,
         fullNights: fullNights,
         actingAdmDates: actingAdmDates);
     final hours = minutes / 60.0;
@@ -622,8 +615,7 @@ class AllowanceCalculator {
     }
     final hasW = hasWeightage(
         movements: movements,
-        attShifts: attShifts,
-        locked: data.attLocked);
+        attShifts: attShifts);
     // Only the contractual Berthing Pilot gets a pay-based night weightage
     // amount; regular posts (Dock Pilot, ADM) are credited by time (hours).
     final timeOnly = !data.master.isBerthingPilot;
@@ -633,7 +625,6 @@ class AllowanceCalculator {
       final weightMinutes = calcNightWeightageMinutes(
           movements: movements,
           attShifts: attShifts,
-          locked: data.attLocked,
           fullNights: data.master.isAdm,
           actingAdmDates: data.actingAdmDates.toSet());
       nightWeightageHours = weightMinutes / 60.0;

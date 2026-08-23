@@ -4,7 +4,7 @@
 Two Flutter allowance apps for Haldia Dock Complex (Dart):
 - `allowance_app` — v1 (legacy, Google Drive sync enabled), package `com.allowance.allowance_app`
 - `allowance_app_v2` — v2 (primary, local-only), package `com.allowance.allowance_app_v2`
-- `shared` — common Flutter package containing `models/`, `services/` (allowance_calculator, official_forms_service, claim_print_service, theme_store, sun_table), and `theme/` (modern_theme, app_theme).
+- `shared` — common Flutter package containing `models/`, `services/` (allowance_calculator, official_forms_service, claim_print_service, theme_store, sun_table, update_service), and `theme/` (modern_theme, app_theme).
 
 UI screens (`lib/screens/`) and app entry (`lib/main.dart`) remain per-app. Domain model/service changes are edited **only once** in `shared/lib/` and automatically apply to both apps. Screen UI changes are mirrored in both apps.
 

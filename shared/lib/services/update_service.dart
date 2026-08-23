@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 class UpdateInfo {
   final String latestVersion;
@@ -70,6 +73,41 @@ class UpdateService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Downloads an APK to the app cache directory.
+  /// [onProgress] is called with a value between 0.0 and 1.0.
+  /// Returns the file path on success, or throws on failure.
+  static Future<String> downloadApk(
+    UpdateAsset asset, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final filePath = '${dir.path}${Platform.pathSeparator}${asset.name}';
+    final file = File(filePath);
+
+    final request = http.Request('GET', Uri.parse(asset.downloadUrl));
+    final response = await http.Client().send(request);
+
+    if (response.statusCode != 200) {
+      throw Exception('Download failed: HTTP ${response.statusCode}');
+    }
+
+    final contentLength = response.contentLength ?? asset.sizeBytes;
+    var receivedBytes = 0;
+    final sink = file.openWrite();
+
+    await for (final chunk in response.stream) {
+      sink.add(chunk);
+      receivedBytes += chunk.length;
+      if (contentLength > 0) {
+        onProgress?.call(receivedBytes / contentLength);
+      }
+    }
+    await sink.flush();
+    await sink.close();
+
+    return filePath;
   }
 
   /// Returns true if [remote] is newer than [local].

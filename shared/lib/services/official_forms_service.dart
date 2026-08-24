@@ -405,7 +405,7 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Signature of the', [380.0, 550.2], 733.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Berthing Master / Pilot', [380.0, 550.2], 744.4, 7.88,
+      w.add(_cell(f, 'ADM/Dock Pilot/Berthing Pilot', [380.0, 550.2], 744.4, 7.88,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -508,10 +508,10 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
           bold: true));
-      final sigLine1 = data.master.isAdm ? 'Signature of ADM' : 'Signature of the';
-      final sigLine2 = data.master.isAdm ? 'Asst. Dock Master' : 'Berthing Master / Pilot';
-      w.add(_cell(f, sigLine1, [380.0, 550.2], 733.9, 7.88, bold: true));
-      w.add(_cell(f, sigLine2, [380.0, 550.2], 744.4, 7.88, bold: true));
+      w.add(_cell(f, 'Signature of the', [380.0, 550.2], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'ADM/Dock Pilot/Berthing Pilot', [380.0, 550.2], 744.4, 7.88,
+          bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,

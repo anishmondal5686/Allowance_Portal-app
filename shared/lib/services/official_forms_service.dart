@@ -83,13 +83,21 @@ class OfficialFormsService {
     return month.trim();
   }
 
-  static Future<Uint8List> buildFormPdf(OfficialForm form, ClaimData data) async {
-    final fonts = _Fonts(
+  static _Fonts? _cachedFonts;
+
+  static Future<_Fonts> _getFonts() async {
+    if (_cachedFonts != null) return _cachedFonts!;
+    _cachedFonts = _Fonts(
       pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Regular.ttf')),
       pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Bold.ttf')),
       pw.Font.ttf(
           await rootBundle.load('assets/fonts/NotoSansDevanagari.ttf')),
     );
+    return _cachedFonts!;
+  }
+
+  static Future<Uint8List> buildFormPdf(OfficialForm form, ClaimData data) async {
+    final fonts = await _getFonts();
     return switch (form) {
       OfficialForm.lengthAndCold => _buildLengthAndCold(data, fonts),
       OfficialForm.lengthAllowance => _buildLengthAllowance(data, fonts),

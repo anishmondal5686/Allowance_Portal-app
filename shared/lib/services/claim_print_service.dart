@@ -34,13 +34,21 @@ class ClaimPrintService {
     );
   }
 
-  static Future<Uint8List> buildPdf(ClaimData data) async {
+  static pw.ThemeData? _cachedTheme;
+
+  static Future<pw.ThemeData> _getTheme() async {
+    if (_cachedTheme != null) return _cachedTheme!;
     final regular = pw.Font.ttf(
         await rootBundle.load('assets/fonts/Roboto-Regular.ttf'));
     final bold =
         pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Bold.ttf'));
-    final doc = pw.Document(
-        theme: pw.ThemeData.withFont(base: regular, bold: bold));
+    _cachedTheme = pw.ThemeData.withFont(base: regular, bold: bold);
+    return _cachedTheme!;
+  }
+
+  static Future<Uint8List> buildPdf(ClaimData data) async {
+    final theme = await _getTheme();
+    final doc = pw.Document(theme: theme);
     final summary = AllowanceCalculator.computeSummary(data);
     final movements = AllowanceCalculator.movementsForMonth(data);
 

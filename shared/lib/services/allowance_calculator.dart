@@ -85,21 +85,30 @@ class AllowanceCalculator {
 
   static int? parseTimeMinutes(String t) => _parseTimeStrict(t);
 
+  static final _normCache = <String, String>{};
+
   static String normDateKey(String s) {
-    s = s.trim();
-    if (s.isEmpty) return '';
-    final dm = RegExp(r'^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$').firstMatch(s);
+    final cached = _normCache[s];
+    if (cached != null) return cached;
+    final trimmed = s.trim();
+    if (trimmed.isEmpty) return '';
+    final dm = RegExp(r'^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$').firstMatch(trimmed);
+    String res;
     if (dm != null) {
       final dd = int.parse(dm.group(1)!);
       final mm = int.parse(dm.group(2)!);
       final yy = dm.group(3)!.length == 2 ? 2000 + int.parse(dm.group(3)!) : int.parse(dm.group(3)!);
-      return '$yy-$mm-$dd';
+      res = '$yy-$mm-$dd';
+    } else {
+      final ym = RegExp(r'^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})$').firstMatch(trimmed);
+      if (ym != null) {
+        res = '${int.parse(ym.group(1)!)}-${int.parse(ym.group(2)!)}-${int.parse(ym.group(3)!)}';
+      } else {
+        res = trimmed;
+      }
     }
-    final ym = RegExp(r'^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})$').firstMatch(s);
-    if (ym != null) {
-      return '${int.parse(ym.group(1)!)}-${int.parse(ym.group(2)!)}-${int.parse(ym.group(3)!)}';
-    }
-    return s;
+    _normCache[s] = res;
+    return res;
   }
 
   static String prevDateKey(String dk) {

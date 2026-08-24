@@ -389,20 +389,24 @@ class OfficialFormsService {
       w.add(_txt(f, 'Haldia Dock Complex', 45.4, 681.4, 7.88));
       w.add(
           _txt(f, 'Forwarded for necessary action at the earliest.', 45.4, 691.9, 7.88));
-      w.add(_txt(f, 'The Manager, Marine', 472.2, 670.1, 7.88, bold: true));
-      w.add(_txt(
-          f, 'Certified that the statement is correct', 410.5, 681.4, 7.88,
+      w.add(_cell(f, 'The Manager, Marine', [380.0, 550.2], 670.1, 7.88,
           bold: true));
-      w.add(_txt(f, 'Manager', 45.4, 733.9, 7.88, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division,', 45.4, 744.4, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 45.4, 754.9, 7.88, bold: true));
-      w.add(_txt(f, 'Asstt. Dock Master', 246.9, 744.4, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 242.1, 754.9, 7.88, bold: true));
-      w.add(
-          _txt(f, '__________________________', 436.3, 733.9, 7.88, bold: true));
-      w.add(_txt(f, 'Signature of the', 490.2, 744.4, 7.88, bold: true));
-      w.add(
-          _txt(f, 'Berthing Master / Pilot', 466.6, 754.9, 7.88, bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct', [380.0, 550.2],
+          681.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Manager', [45.0, 210.0], 733.9, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [45.0, 210.0], 744.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [45.0, 210.0], 754.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Asstt. Dock Master', [210.0, 380.0], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Signature of the', [380.0, 550.2], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Berthing Master / Pilot', [380.0, 550.2], 744.4, 7.88,
+          bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -490,20 +494,24 @@ class OfficialFormsService {
       w.add(_txt(f, 'Haldia Dock Complex', 45.4, 681.4, 7.88));
       w.add(
           _txt(f, 'Forwarded for necessary action at the earliest.', 45.4, 691.9, 7.88));
-      w.add(_txt(f, 'The Manager, Marine', 472.2, 670.1, 7.88, bold: true));
-      w.add(_txt(
-          f, 'Certified that the statement is correct', 410.5, 681.4, 7.88,
+      w.add(_cell(f, 'The Manager, Marine', [380.0, 550.2], 670.1, 7.88,
           bold: true));
-      w.add(_txt(f, 'Manager', 45.4, 733.9, 7.88, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division,', 45.4, 744.4, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 45.4, 754.9, 7.88, bold: true));
-      w.add(_txt(f, 'Asstt. Dock Master', 246.9, 744.4, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 242.1, 754.9, 7.88, bold: true));
-      w.add(
-          _txt(f, '__________________________', 436.3, 733.9, 7.88, bold: true));
-      w.add(_txt(f, 'Signature of the', 490.2, 744.4, 7.88, bold: true));
-      w.add(
-          _txt(f, 'Berthing Master / Pilot', 466.6, 754.9, 7.88, bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct', [380.0, 550.2],
+          681.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Manager', [45.0, 210.0], 733.9, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [45.0, 210.0], 744.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [45.0, 210.0], 754.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Asstt. Dock Master', [210.0, 380.0], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
+          bold: true));
+      final sigLine1 = data.master.isAdm ? 'Signature of ADM' : 'Signature of the';
+      final sigLine2 = data.master.isAdm ? 'Asst. Dock Master' : 'Berthing Master / Pilot';
+      w.add(_cell(f, sigLine1, [380.0, 550.2], 733.9, 7.88, bold: true));
+      w.add(_cell(f, sigLine2, [380.0, 550.2], 744.4, 7.88, bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -675,19 +683,24 @@ class OfficialFormsService {
       w.add(_txt(f, 'The Manager, (P&IR) Haldia Dock Complex', 22.7, 728.6, 7.88));
       w.add(_txt(f, 'Forwarded for necessary action at the earliest', 22.7,
           739.1, 7.88));
-      w.add(_txt(f, 'The Manager (M.O.), HDC', 492.1, 728.6, 7.88, bold: true));
-      w.add(_txt(
-          f, 'Certified that the statement is correct', 433.2, 739.1, 7.88,
+      w.add(_cell(f, 'The Manager (M.O.), HDC', [390.0, 572.7], 728.6, 7.88,
           bold: true));
-      w.add(_txt(f, 'Manager', 22.7, 786.4, 7.88, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division', 22.7, 796.1, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 22.7, 806.6, 7.88, bold: true));
-      w.add(_txt(f, 'Deputy Dock Master,', 243.8, 796.1, 7.88, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 240.7, 806.6, 7.88, bold: true));
-      w.add(
-          _txt(f, '___________________________________', 419.5, 786.4, 7.88, bold: true));
-      w.add(_txt(f, 'Signature of ADM', 515.5, 796.1, 7.88, bold: true));
-      w.add(_txt(f, 'Asst. Dock Master', 513.2, 806.6, 7.88, bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct', [390.0, 572.7],
+          739.1, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Manager', [22.7, 200.0], 786.4, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 796.5, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 806.6, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Deputy Dock Master,', [200.0, 390.0], 786.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 796.5, 7.88,
+          bold: true));
+      final sigLine1 = data.master.isAdm ? 'Signature of ADM' : 'Signature of the';
+      final sigLine2 = data.master.isAdm ? 'Asst. Dock Master' : 'Berthing / Dock Pilot';
+      w.add(_cell(f, sigLine1, [390.0, 572.7], 786.4, 7.88, bold: true));
+      w.add(_cell(f, sigLine2, [390.0, 572.7], 796.5, 7.88, bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -803,16 +816,24 @@ class OfficialFormsService {
           22.7, 428.0, 8.25));
       w.add(_txt(f, 'The Manager ( P & IR )', 22.7, 690.0, 8.25));
       w.add(_txt(f, 'Forwarded for necessary action.', 22.7, 704.0, 8.25));
-      w.add(_txt(f, 'The Manager (M.O.), HDC', 492.1, 690.0, 8.25, bold: true));
-      w.add(_txt(
-          f, 'Certified that the statement is correct', 433.2, 704.0, 8.25,
+      w.add(_cell(f, 'The Manager (M.O.), HDC', [390.0, 572.7], 690.0, 8.25,
           bold: true));
-      w.add(_txt(f, 'Manager', 22.7, 775.0, 8.25, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division', 22.7, 789.0, 8.25, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 22.7, 803.0, 8.25, bold: true));
-      w.add(_txt(f, 'Deputy Dock Master', 243.8, 789.0, 8.25, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 240.7, 803.0, 8.25, bold: true));
-      w.add(_txt(f, 'Signature of ADM', 515.5, 789.0, 8.25, bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct', [390.0, 572.7],
+          704.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Manager', [22.7, 200.0], 775.0, 8.25, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 789.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 803.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Deputy Dock Master', [200.0, 390.0], 775.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 789.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Signature of ADM', [390.0, 572.7], 775.0, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Asst. Dock Master', [390.0, 572.7], 789.0, 8.25,
+          bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -1157,18 +1178,25 @@ class OfficialFormsService {
       w.add(_txt(f, 'Forwarded for necessary action at the earliest.', 39.7,
           605.7, 8.62,
           bold: true));
-      w.add(
-          _txt(f, 'The Manager (M.O.), HDC', 448.0, 590.7, 8.62, bold: true));
-      w.add(_txt(f, 'Certified that the statement is correct.', 394.6, 605.7,
-          8.62,
+      w.add(_cell(f, 'The Manager (M.O.), HDC', [370.0, 555.5], 590.7, 8.62,
           bold: true));
-      w.add(_txt(f, 'Manager', 39.7, 650.7, 8.62, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division,', 39.7, 664.2, 8.62, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 39.7, 676.9, 8.62, bold: true));
-      w.add(_txt(f, 'Dy./Asst. Dock Master,', 249.5, 664.2, 8.62, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 253.0, 676.9, 8.62, bold: true));
-      w.add(_txt(f, 'Signature of ADM', 488.5, 664.2, 8.62, bold: true));
-      w.add(_txt(f, 'Asst. Dock Master', 485.5, 676.9, 8.62, bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct.', [370.0, 555.5],
+          605.7, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Manager', [39.7, 200.0], 650.7, 8.62, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [39.7, 200.0], 664.2, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [39.7, 200.0], 676.9, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Dy./Asst. Dock Master,', [200.0, 370.0], 650.7, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 370.0], 664.2, 8.62,
+          bold: true));
+      final isAdmDuty = admDuty || data.master.isAdm;
+      final sigLine1 = isAdmDuty ? 'Signature of ADM' : 'Signature of the';
+      final sigLine2 = isAdmDuty ? 'Asst. Dock Master' : 'Berthing / Dock Pilot';
+      w.add(_cell(f, sigLine1, [370.0, 555.5], 650.7, 8.62, bold: true));
+      w.add(_cell(f, sigLine2, [370.0, 555.5], 664.2, 8.62, bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -1289,14 +1317,21 @@ class OfficialFormsService {
       w.add(_txt(f, 'Forwarded for necessary action at the earliest.', 28.3,
           382.5, 8.25,
           bold: true));
-      w.add(_txt(f, 'Manager', 28.3, 431.3, 8.25, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division,', 28.3, 442.5, 8.25, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 28.3, 454.5, 8.25, bold: true));
-      w.add(_txt(f, 'Dy. Dock Master', 389.3, 431.3, 8.25, bold: true));
-      w.add(_txt(f, 'Marine Ops. Division,', 379.2, 442.5, 8.25, bold: true));
-      w.add(_txt(f, 'Haldia Dock Complex', 378.9, 454.5, 8.25, bold: true));
-      w.add(_txt(f, 'Signature of the', 751.1, 442.5, 8.25, bold: true));
-      w.add(_txt(f, 'Berthing / Dock Pilot', 732.8, 454.5, 8.25, bold: true));
+      w.add(_cell(f, 'Manager', [28.5, 250.0], 431.3, 8.25, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [28.5, 250.0], 442.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [28.5, 250.0], 454.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Dy. Dock Master', [250.0, 550.0], 431.3, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [250.0, 550.0], 442.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [250.0, 550.0], 454.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Signature of the', [550.0, 813.0], 431.3, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Berthing / Dock Pilot', [550.0, 813.0], 442.5, 8.25,
+          bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,
         margin: pw.EdgeInsets.zero,
@@ -1513,9 +1548,10 @@ class OfficialFormsService {
           8.62, bold: true));
       w.add(_txt(f, 'Forwarded for necessary action', 39.8,
           712, 8.62, bold: true));
-      w.add(_txt(f, 'The Manager (M.O.), HDC', 386.0, 695, 8.62, bold: true));
-      w.add(_txt(f, 'Certified that the statement is correct.', 386.0, 712,
-          8.62, bold: true));
+      w.add(_cell(f, 'The Manager (M.O.), HDC', [350.2, 555.5], 695, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Certified that the statement is correct.', [350.2, 555.5],
+          712, 8.62, bold: true));
       w.add(_cell(f, 'Manager', [39.8, 195.0], 748, 8.25, bold: true));
       w.add(_cell(f, 'Marine Ops. Division,', [39.8, 195.0], 761, 8.25,
           bold: true));

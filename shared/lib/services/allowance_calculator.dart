@@ -524,12 +524,26 @@ class AllowanceCalculator {
     if (offDayNum != null && dow == offDayNum) return 'OFF';
     if (rotation.isEmpty) return '';
     const rot = {'N': 'E', 'E': 'M', 'M': 'N'};
-    final weekIndex = (dt.day - 1) ~/ 7;
+    final weekIndex = _weekIndex(dt.year, dt.month, dt.day, offDayNum);
     var shift = rotation;
     for (var w = 0; w < weekIndex; w++) {
       shift = rot[shift] ?? shift;
     }
     return shift;
+  }
+
+  /// Returns how many off-days have occurred before the given [day] in the
+  /// month, anchoring the first off-day to its natural weekday position.
+  /// When [offDayNum] is null (no off-day configured) the index falls back
+  /// to fixed 7-day blocks from day 1.
+  static int _weekIndex(int year, int month, int day, int? offDayNum) {
+    if (offDayNum == null) return (day - 1) ~/ 7;
+    final startWeekday = DateTime(year, month, 1).weekday;
+    final firstOffDay = offDayNum >= startWeekday
+        ? offDayNum - startWeekday + 1
+        : offDayNum - startWeekday + 8;
+    if (day < firstOffDay) return 0;
+    return (day - firstOffDay) ~/ 7 + 1;
   }
 
   /// Strips future dates (after today) from [shifts] so they are not treated
@@ -572,7 +586,7 @@ class AllowanceCalculator {
       if (offDayNum != null && dow == offDayNum) {
         out[key] = 'OFF';
       } else if (rotation.isNotEmpty) {
-        final weekIndex = (d - 1) ~/ 7;
+        final weekIndex = _weekIndex(year, month, d, offDayNum);
         var shift = rotation;
         for (var w = 0; w < weekIndex; w++) {
           shift = rot[shift] ?? shift;

@@ -505,7 +505,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _ModernDropdown<String>(
                       label: 'Designation',
                       value: _designation,
-                      prefixIcon: Icons.work_outline,
                       items: _designationOptions
                           .map((e) => DropdownMenuItem(
                                 value: e.$1,
@@ -513,7 +512,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   children: [
                                     Icon(e.$2, size: 20),
                                     const SizedBox(width: 12),
-                                    Text(e.$1),
+                                    Flexible(
+                                      child: Text(
+                                        e.$1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ))
@@ -900,14 +904,12 @@ class _ModernTextField extends StatelessWidget {
 class _ModernDropdown<T> extends StatelessWidget {
   final String label;
   final T value;
-  final IconData prefixIcon;
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?> onChanged;
 
   const _ModernDropdown({
     required this.label,
     required this.value,
-    required this.prefixIcon,
     required this.items,
     required this.onChanged,
   });
@@ -915,12 +917,13 @@ class _ModernDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
+      isExpanded: true,
       initialValue: value,
       items: items,
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(prefixIcon),
+        isDense: true,
       ),
     );
   }
@@ -951,6 +954,7 @@ class _ModernMonthPicker extends StatelessWidget {
       children: [
         Expanded(
           child: DropdownButtonFormField<int>(
+            isExpanded: true,
             initialValue: selectedMonth,
             items: List.generate(
               12,
@@ -965,13 +969,14 @@ class _ModernMonthPicker extends StatelessWidget {
             onChanged: (v) => onMonthChanged(v!),
             decoration: const InputDecoration(
               labelText: 'Month',
-              prefixIcon: Icon(Icons.calendar_month_rounded),
+              isDense: true,
             ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: DropdownButtonFormField<int>(
+            isExpanded: true,
             initialValue: selectedYear,
             items: years
                 .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
@@ -979,7 +984,7 @@ class _ModernMonthPicker extends StatelessWidget {
             onChanged: (v) => onYearChanged(v!),
             decoration: const InputDecoration(
               labelText: 'Year',
-              prefixIcon: Icon(Icons.event_rounded),
+              isDense: true,
             ),
           ),
         ),
@@ -1095,11 +1100,14 @@ class _SunTimesCard extends StatelessWidget {
                   Icon(Icons.calendar_today_outlined,
                       size: 16, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 8),
-                  Text(
-                    isToday ? 'Today — ${_fmtDate(date)}' : _fmtDate(date),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                  Flexible(
+                    child: Text(
+                      isToday ? 'Today — ${_fmtDate(date)}' : _fmtDate(date),
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                    ),
                   ),
                   const Spacer(),
                   Icon(Icons.edit_calendar_outlined,

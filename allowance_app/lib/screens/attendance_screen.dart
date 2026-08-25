@@ -679,7 +679,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       : scheme.onSurfaceVariant.withValues(
                                           alpha: 0.5),
                                 )),
-                            if (shift.isNotEmpty)
+                            if (shift.isNotEmpty && !isPredicted)
                               Text(shift,
                                   style: TextStyle(
                                       fontSize: 9,

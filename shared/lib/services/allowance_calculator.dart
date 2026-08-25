@@ -599,18 +599,32 @@ class AllowanceCalculator {
 
   /// Effective attendance shifts for the claim month: the stored shifts plus
   /// any roster dates auto-filled from off day / starting rotation, so the
-  /// night weightage output matches the webapp.
+  /// night weightage output matches the webapp.  Future dates (after today)
+  /// are stripped so that predicted-only shifts never contribute to
+  /// weightage or claim totals.
   static Map<String, String> effectiveAttShifts(ClaimData data) {
     final parsed = MasterData.parseMonthYear(data.master.month);
     if (parsed == null) return attShiftsForMonth(data);
     final (y, mo) = parsed;
-    return fillRoster(
+    final filled = fillRoster(
       year: y,
       month: mo,
       offDay: data.attOffDay,
       rotation: data.attRotation,
       existing: attShiftsForMonth(data),
     );
+    final now = DateTime.now();
+    final todayDt = DateTime(now.year, now.month, now.day);
+    final out = <String, String>{};
+    filled.forEach((key, val) {
+      final p = key.split('-');
+      if (p.length != 3) { out[key] = val; return; }
+      final dy = int.tryParse(p[2]);
+      if (dy == null) { out[key] = val; return; }
+      final dt = DateTime(y, mo, dy);
+      if (!dt.isAfter(todayDt)) out[key] = val;
+    });
+    return out;
   }
 
   static ClaimSummary computeSummary(ClaimData data) {

@@ -513,10 +513,16 @@ class AllowanceCalculator {
 
   /// Returns the predicted roster shift ('OFF', 'N', 'E', 'M') for [dt]
   /// based on the claimant's [offDay] and starting [rotation].
+  ///
+  /// When [claimYear]/[claimMonth] are provided the week-index is computed
+  /// continuously from the claim month's first off-day so that predictions
+  /// across month boundaries stay aligned with the rotation.
   static String predictRosterShift({
     required DateTime dt,
     required String offDay,
     required String rotation,
+    int? claimYear,
+    int? claimMonth,
   }) {
     if (offDay.isEmpty && rotation.isEmpty) return '';
     final offDayNum = offDay.isNotEmpty ? int.tryParse(offDay) : null;
@@ -524,7 +530,9 @@ class AllowanceCalculator {
     if (offDayNum != null && dow == offDayNum) return 'OFF';
     if (rotation.isEmpty) return '';
     const rot = {'N': 'E', 'E': 'M', 'M': 'N'};
-    final weekIndex = _weekIndex(dt.year, dt.month, dt.day, offDayNum);
+    final weekIndex = (claimYear != null && claimMonth != null)
+        ? _weekIndexContinuous(dt, claimYear, claimMonth, offDayNum)
+        : _weekIndex(dt.year, dt.month, dt.day, offDayNum);
     var shift = rotation;
     for (var w = 0; w < weekIndex; w++) {
       shift = rot[shift] ?? shift;
@@ -544,6 +552,21 @@ class AllowanceCalculator {
         : offDayNum - startWeekday + 8;
     if (day < firstOffDay) return 0;
     return (day - firstOffDay) ~/ 7 + 1;
+  }
+
+  /// Continuous week-index anchored to [anchorYear]/[anchorMonth]'s first
+  /// off-day.  This ensures the rotation carries across month boundaries.
+  static int _weekIndexContinuous(
+      DateTime dt, int anchorYear, int anchorMonth, int? offDayNum) {
+    if (offDayNum == null) return (dt.day - 1) ~/ 7;
+    final anchorStartWeekday = DateTime(anchorYear, anchorMonth, 1).weekday;
+    final firstOffInAnchor = offDayNum >= anchorStartWeekday
+        ? offDayNum - anchorStartWeekday + 1
+        : offDayNum - anchorStartWeekday + 8;
+    final anchorFirstOff = DateTime(anchorYear, anchorMonth, firstOffInAnchor);
+    if (!dt.isAfter(anchorFirstOff)) return 0;
+    final diff = dt.difference(anchorFirstOff).inDays;
+    return ((diff - 1) ~/ 7) + 1;
   }
 
   /// Strips future dates (after today) from [shifts] so they are not treated

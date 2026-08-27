@@ -152,10 +152,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final now = DateTime.now();
     final todayDt = DateTime(now.year, now.month, now.day);
     if (dt.isAfter(todayDt)) {
+      final parsed = MasterData.parseMonthYear(widget.claimData.master.month);
       final pred = AllowanceCalculator.predictRosterShift(
         dt: dt,
         offDay: widget.claimData.attOffDay,
         rotation: widget.claimData.attRotation,
+        claimYear: parsed?.$1,
+        claimMonth: parsed?.$2,
       );
       if (pred.isNotEmpty) return (code: pred, isPredicted: true);
     }

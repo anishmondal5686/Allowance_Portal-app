@@ -363,7 +363,7 @@ class OfficialFormsService {
       for (var i = 0; i < 20; i++) {
         final mv = i < lChunk.length ? lChunk[i] : null;
         final y = 180.8 + i * 17.25;
-        w.add(_cell(f, mv == null ? '' : '${i + 1}', _lcCols[0], y, 8.25));
+        w.add(_cell(f, mv == null ? '' : '${p * 20 + i + 1}', _lcCols[0], y, 8.25));
         w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -385,7 +385,7 @@ class OfficialFormsService {
       for (var i = 0; i < 5; i++) {
         final mv = i < cChunk.length ? cChunk[i] : null;
         final y = 562.5 + i * 17.25;
-        w.add(_cell(f, mv == null ? '' : '${i + 1}', _lcCols[0], y, 8.25));
+        w.add(_cell(f, mv == null ? '' : '${p * 5 + i + 1}', _lcCols[0], y, 8.25));
         w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -489,7 +489,7 @@ class OfficialFormsService {
       for (var i = 0; i < 20; i++) {
         final mv = i < chunk.length ? chunk[i] : null;
         final y = 180.8 + i * 17.25;
-        w.add(_cell(f, mv == null ? '' : '${i + 1}', _lcCols[0], y, 8.25));
+        w.add(_cell(f, mv == null ? '' : '${p * 20 + i + 1}', _lcCols[0], y, 8.25));
         w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -645,7 +645,7 @@ class OfficialFormsService {
       for (var i = 0; i < 10; i++) {
         final mv = i < aChunk.length ? aChunk[i] : null;
         final y = 180.4 + i * 17.3;
-        w.add(_cell(f, mv == null ? '' : '${i + 1}', _naCols[0], y, 7.88));
+        w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}', _naCols[0], y, 7.88));
         w.add(_cell(f, mv?.date ?? '', _naCols[1], y, 7.88));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _naCols[2], y, 7.88));
         w.add(_cell(f, mv?.vessel ?? '', _naCols[3], y, 7.88));
@@ -666,7 +666,7 @@ class OfficialFormsService {
         final g = i < gChunk.length ? gChunk[i] : null;
         final y = 394.9 + i * 17.2;
         final by = 394.5 + i * 17.2;
-        w.add(_cell(f, g == null ? '' : '${i + 1}', _nwCols[0], y, 7.88));
+        w.add(_cell(f, g == null ? '' : '${p * 15 + i + 1}', _nwCols[0], y, 7.88));
         w.add(_cell(f, g?.date ?? '', _nwCols[1], y, 7.88));
         w.add(_cell(
             f, g == null ? '' : 'NIGHT', _nwCols[2], by, 8.25, bold: true));
@@ -798,7 +798,7 @@ class OfficialFormsService {
       for (var i = 0; i < 10; i++) {
         final g = i < gChunk.length ? gChunk[i] : null;
         final y = 236.0 + i * 17.4;
-        w.add(_cell(f, g == null ? '' : '${i + 1}', _nwCols[0], y, 7.88));
+        w.add(_cell(f, g == null ? '' : '${p * 10 + i + 1}', _nwCols[0], y, 7.88));
         w.add(_cell(f, g?.date ?? '', _nwCols[1], y, 7.88));
         w.add(
             _cell(f, g == null ? '' : 'NIGHT', _nwCols[2], y, 8.25, bold: true));
@@ -1174,7 +1174,7 @@ class OfficialFormsService {
       for (var i = 0; i < 10; i++) {
         final mv = i < chunk.length ? chunk[i] : null;
         final y = 312.4 + i * 24.0;
-        w.add(_cell(f, mv == null ? '' : '${i + 1}.', _lockCols[0], y, 8.62));
+        w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}.', _lockCols[0], y, 8.62));
         w.add(_cell(f, mv?.date ?? '', _lockCols[1], y, 8.62));
         w.add(_cell(f, mv?.vessel ?? '', _lockCols[2], y, 8.62));
         w.add(_cell(f, mv?.start ?? '', _lockCols[3], y, 8.62));
@@ -1315,7 +1315,7 @@ class OfficialFormsService {
         final y = 129.0 + i * 18.75;
         final cells = entry == null
             ? ['', '', '', '', '', '', '', '', '', '']
-            : _navCells(entry.$1, i + 1, entry.$2);
+            : _navCells(entry.$1, p * 10 + i + 1, entry.$2);
         for (var c = 0; c < 10; c++) {
           w.add(_cell(f, cells[c], _navCols[c], y, 8.25));
         }

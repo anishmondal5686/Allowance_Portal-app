@@ -270,6 +270,20 @@ class OfficialFormsService {
   static String _admDutyDsgn(MasterData m) =>
       m.isAdm ? m.designation : 'Acting ADM';
 
+  /// Signed role for the bottom-right signature block, derived from the
+  /// claim's designation. ADM signs as Asst. Dock Master; otherwise the
+  /// exact pilot designation is shown.
+  static String _signatureRole(MasterData m) {
+    if (m.isAdm) return 'Asst. Dock Master';
+    if (m.isBerthingPilot) return 'Berthing Pilot';
+    return 'Dock Pilot';
+  }
+
+  /// Bottom-right signature label. ADM (or ADM-duty) forms sign as the
+  /// Assistant Dock Master; ordinary pilot forms keep "Signature of the".
+  static String _signatureLabel(bool admDuty) =>
+      admDuty ? 'Signature of ADM' : 'Signature of the';
+
   static const _lcXs = [45.0, 70.5, 131.2, 207.0, 387.8, 448.5, 498.8, 549.8];
   static const _lcRows = [
     159.8, 176.2, 193.5, 210.8, 228.0, 245.2, 262.5, 279.8, 297.0, 314.2,
@@ -411,9 +425,9 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Signature of the', [380.0, 550.2], 733.9, 7.88,
+      w.add(_cell(f, _signatureLabel(m.isAdm), [380.0, 550.2], 733.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'ADM/Dock Pilot/Berthing Pilot', [380.0, 550.2], 744.4, 7.88,
+      w.add(_cell(f, _signatureRole(m), [380.0, 550.2], 744.4, 7.88,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -516,9 +530,9 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Signature of the', [380.0, 550.2], 733.9, 7.88,
+      w.add(_cell(f, _signatureLabel(m.isAdm), [380.0, 550.2], 733.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'ADM/Dock Pilot/Berthing Pilot', [380.0, 550.2], 744.4, 7.88,
+      w.add(_cell(f, _signatureRole(m), [380.0, 550.2], 744.4, 7.88,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -705,8 +719,8 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 796.5, 7.88,
           bold: true));
-      final sigLine1 = data.master.isAdm ? 'Signature of ADM' : 'Signature of the';
-      final sigLine2 = data.master.isAdm ? 'Asst. Dock Master' : 'Berthing / Dock Pilot';
+      final sigLine1 = _signatureLabel(data.master.isAdm);
+      final sigLine2 = _signatureRole(data.master);
       w.add(_cell(f, sigLine1, [390.0, 572.7], 786.4, 7.88, bold: true));
       w.add(_cell(f, sigLine2, [390.0, 572.7], 796.5, 7.88, bold: true));
       doc.addPage(pw.Page(
@@ -1201,8 +1215,9 @@ class OfficialFormsService {
       w.add(_cell(f, 'Haldia Dock Complex', [200.0, 370.0], 664.2, 8.62,
           bold: true));
       final isAdmDuty = admDuty || data.master.isAdm;
-      final sigLine1 = isAdmDuty ? 'Signature of ADM' : 'Signature of the';
-      final sigLine2 = isAdmDuty ? 'Asst. Dock Master' : 'Berthing / Dock Pilot';
+      final sigLine1 = _signatureLabel(isAdmDuty);
+      final sigLine2 =
+          admDuty ? 'Asst. Dock Master' : _signatureRole(data.master);
       w.add(_cell(f, sigLine1, [370.0, 555.5], 650.7, 8.62, bold: true));
       w.add(_cell(f, sigLine2, [370.0, 555.5], 664.2, 8.62, bold: true));
       doc.addPage(pw.Page(
@@ -1338,7 +1353,7 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Signature of the', [550.0, 813.0], 431.3, 8.25,
           bold: true));
-      w.add(_cell(f, 'Berthing / Dock Pilot', [550.0, 813.0], 442.5, 8.25,
+      w.add(_cell(f, _signatureRole(m), [550.0, 813.0], 442.5, 8.25,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,

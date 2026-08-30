@@ -1340,20 +1340,26 @@ class OfficialFormsService {
       w.add(_txt(f, 'Forwarded for necessary action at the earliest.', 28.3,
           382.5, 8.25,
           bold: true));
-      w.add(_cell(f, 'Manager', [28.5, 250.0], 431.3, 8.25, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division,', [28.5, 250.0], 442.5, 8.25,
+      w.add(_cell(f, 'Manager', [28.5, 240.0], 431.3, 8.25, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [28.5, 240.0], 442.5, 8.25,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [28.5, 250.0], 454.5, 8.25,
+      w.add(_cell(f, 'Haldia Dock Complex', [28.5, 240.0], 454.5, 8.25,
           bold: true));
-      w.add(_cell(f, 'Dy. Dock Master', [250.0, 550.0], 431.3, 8.25,
+      w.add(_cell(f, 'Dy. Dock Master', [240.0, 400.0], 431.3, 8.25,
           bold: true));
-      w.add(_cell(f, 'Marine Ops. Division,', [250.0, 550.0], 442.5, 8.25,
+      w.add(_cell(f, 'Marine Ops. Division,', [240.0, 400.0], 442.5, 8.25,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [250.0, 550.0], 454.5, 8.25,
+      w.add(_cell(f, 'Haldia Dock Complex', [240.0, 400.0], 454.5, 8.25,
           bold: true));
-      w.add(_cell(f, 'Signature of the', [550.0, 813.0], 431.3, 8.25,
+      w.add(_cell(f, 'Asst. Dock Master', [400.0, 560.0], 431.3, 8.25,
           bold: true));
-      w.add(_cell(f, _signatureRole(m), [550.0, 813.0], 442.5, 8.25,
+      w.add(_cell(f, 'Marine Ops. Division,', [400.0, 560.0], 442.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [400.0, 560.0], 454.5, 8.25,
+          bold: true));
+      w.add(_cell(f, 'Signature of the', [560.0, 813.0], 431.3, 8.25,
+          bold: true));
+      w.add(_cell(f, _signatureRole(m), [560.0, 813.0], 442.5, 8.25,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,

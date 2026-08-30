@@ -489,7 +489,13 @@ class AllowanceCalculator {
       if (cy != 0) return cy;
       final cm = am.compareTo(bm);
       if (cm != 0) return cm;
-      return ad.compareTo(bd);
+      final cd = ad.compareTo(bd);
+      if (cd != 0) return cd;
+      // Same date → sort by start time so rows appear chronologically.
+      final as = _parseTimeStrict(a.start);
+      final bs = _parseTimeStrict(b.start);
+      if (as != null && bs != null && as != bs) return as.compareTo(bs);
+      return 0;
     });
     return out;
   }

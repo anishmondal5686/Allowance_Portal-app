@@ -682,6 +682,28 @@ void main() {
       expect(AllowanceCalculator.movementsForMonth(data).length, 2);
     });
 
+    test('movementsForMonth sorts same-date movements by start time', () {
+      Movement timed(String date, String start, String vessel) => Movement(
+          date: date,
+          vessel: vessel,
+          from: 'OFF',
+          to: 'B2',
+          start: start,
+          end: '12:00',
+          loa: '180',
+          allowance: 'length');
+      final data = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
+      data.movements
+        ..add(timed('15/09/26', '19:00', 'LATE'))
+        ..add(timed('17/09/26', '06:00', 'NEWEST-DAY'))
+        ..add(timed('15/09/26', '01:30', 'AFTER-MIDNIGHT'))
+        ..add(timed('15/09/26', '10:00', 'MID'))
+        ..add(timed('16/09/26', '08:00', 'NEXT-DAY'));
+      final sorted = AllowanceCalculator.movementsForMonth(data);
+      expect(sorted.map((m) => m.vessel),
+          ['AFTER-MIDNIGHT', 'MID', 'LATE', 'NEXT-DAY', 'NEWEST-DAY']);
+    });
+
     test('attShiftsForMonth keeps only shifts within the master month', () {
       final data = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
       data.attShifts = {

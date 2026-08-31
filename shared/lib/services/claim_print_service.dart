@@ -70,7 +70,9 @@ class ClaimPrintService {
               rows: sheet.actingRows,
             ),
           ],
-          pw.SizedBox(height: 14),
+          pw.SizedBox(height: 12),
+          _allowanceBreakdown(sheet),
+          pw.SizedBox(height: 10),
           _grandTotalRow(sheet),
         ],
       ),
@@ -241,6 +243,69 @@ class ClaimPrintService {
         _calCell(row.count == 0 ? '' : '${row.count}'),
         _calCell(
             row.amount == 0 ? '' : _money.format(row.amount)),
+      ],
+    );
+  }
+
+  static pw.Widget _allowanceBreakdown(CalcSheet sheet) {
+    final List<pw.Widget> parts = [];
+    final Map<String, double> totals = {};
+    final combined = <CalcSheetRow>[
+      ...sheet.baseRows,
+      if (sheet.hasActing) ...sheet.actingRows,
+    ];
+    for (final r in combined) {
+      if (r.isWeightage) continue;
+      String key;
+      if (r.category.startsWith('Length')) {
+        key = 'Length';
+      } else if (r.category.startsWith('Night navigation')) {
+        key = 'Night Navigation';
+      } else if (r.category.startsWith('Night act')) {
+        key = 'Night Act';
+      } else if (r.category.startsWith('Lock')) {
+        key = 'Lock';
+      } else if (r.category.startsWith('Cold')) {
+        key = 'Cold';
+      } else {
+        key = r.category;
+      }
+      totals[key] = (totals[key] ?? 0) + r.amount;
+    }
+
+    final order = ['Length', 'Night Navigation', 'Night Act', 'Lock', 'Cold'];
+    var first = true;
+    void sep() {
+      parts.add(pw.Text('  •  ',
+          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700)));
+    }
+
+    void add(String label, String value) {
+      if (!first) sep();
+      first = false;
+      parts.add(pw.Text('$label $value',
+          style: const pw.TextStyle(fontSize: 9)));
+    }
+
+    for (final k in order) {
+      final v = totals[k] ?? 0;
+      if (v != 0) add(k, _money.format(v));
+    }
+
+    final weightageHours = sheet.baseWeightageHours + sheet.actingWeightageHours;
+    if (sheet.weightageAmount != 0 || weightageHours != 0) {
+      add('Night Weightage',
+          sheet.weightageAmount != 0
+              ? _money.format(sheet.weightageAmount)
+              : '${weightageHours.toStringAsFixed(2)} HRS');
+    }
+
+    return pw.Row(
+      children: [
+        pw.Text('SUMMARY: ',
+            style: pw.TextStyle(
+                fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        for (final p in parts) p,
       ],
     );
   }

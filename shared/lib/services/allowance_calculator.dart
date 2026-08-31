@@ -712,4 +712,270 @@ class AllowanceCalculator {
         payWarning: payWarning,
         nightWeightageHours: nightWeightageHours);
   }
+
+  /// Builds the official "Calculation Sheet of Marine Allowances" tables for
+  /// this claim: one table for the claimant's own designation and, when a
+  /// Dock/Berthing Pilot performed ADM duty during the month, a separate
+  /// "Acting ADM Allowances" table. Rows carry the movement counts and rates
+  /// from the standard Haldia Dock Complex sheet.
+  static CalcSheet calcSheet(ClaimData data) {
+    final isAdm = data.master.isAdm;
+    final movements = movementsForMonth(data);
+    final attShifts = effectiveAttShifts(data);
+
+    CalcSheetRow row(String cat, String rate, String old, String sap,
+            int count, double amount) =>
+        CalcSheetRow(
+            category: cat,
+            rateChart: rate,
+            oldCode: old,
+            sapCode: sap,
+            count: count,
+            amount: amount);
+
+    // base (own designation) template rows.
+    final baseRows = <CalcSheetRow>[
+      if (isAdm) ...[
+        row('Night navigation (Inward L>210 m)', '540', '097', '5290', 0, 0),
+        row('Night navigation (Outward L= 180 to 210 m)', '675', '097', '5290',
+            0, 0),
+        row('Night navigation (Outward L>210 m)', '1010', '097', '5290', 0, 0),
+        row('Night navigation (Outward Beam>30.5 m)', '675', '097', '5290', 0,
+            0),
+        row('Lock to App. Jetty & vice versa', '1500', '067', '5215', 0, 0),
+        row('Length (LOA>175.26m)', '310', '077', '5245', 0, 0),
+        row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0, 0),
+      ] else ...[
+        row('Length (LOA>175.26m)', '310', '077', '5245', 0, 0),
+        row('Night navigation (Inward L>210 m)', '540', '097', '5290', 0, 0),
+        row('Night navigation (Outward L= 180 to 210 m)', '540', '097', '5290',
+            0, 0),
+        row('Night navigation (Outward L>210 m)', '810', '097', '5290', 0, 0),
+        row('Night navigation (Outward Beam>30.5 m)', '540', '097', '5290', 0,
+            0),
+        row('Night navigation (Double banking & unbanking)', '540', '097',
+            '5290', 0, 0),
+        row('Night act (L>175.26 m)', '205', '082', '5250', 0, 0),
+        row('Night act (L<175.26 m)', '135', '082', '5250', 0, 0),
+        row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0, 0),
+        row('Lock to App. Jetty & vice versa', '1000', '067', '5215', 0, 0),
+        row('Cold Movement', '160', '072', '5230', 0, 0),
+      ],
+    ];
+
+    // acting-ADM template rows (only relevant for a Dock/Berthing Pilot).
+    final actingRows = (isAdm
+        ? <CalcSheetRow>[]
+        : <CalcSheetRow>[
+            row('Night navigation (Inward L>210 m)', '540', '097', '5290', 0,
+                0),
+            row('Night navigation (Outward L= 180 to 210 m)', '675', '097',
+                '5290', 0, 0),
+            row('Night navigation (Outward L>210 m)', '1010', '097', '5290', 0,
+                0),
+            row('Night navigation (Outward Beam>30.5 m)', '675', '097', '5290',
+                0, 0),
+            row('Lock to App. Jetty & vice versa', '1500', '067', '5215', 0,
+                0),
+            row('Length (LOA>175.26m)', '310', '077', '5245', 0, 0),
+            row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0,
+                0),
+          ]);
+
+    // Accumulate non-weightage rows. Rows are indexed by their category text.
+    final base = <String, CalcSheetRow>{
+      for (final r in baseRows) if (!r.isWeightage) r.category: r
+    };
+    final acting = <String, CalcSheetRow>{
+      for (final r in actingRows) if (!r.isWeightage) r.category: r
+    };
+
+    void addTo(Map<String, CalcSheetRow> map, String category, double amt,
+        int count) {
+      final r = map[category];
+      if (r == null) return;
+      map[category] = CalcSheetRow(
+          category: r.category,
+          rateChart: r.rateChart,
+          oldCode: r.oldCode,
+          sapCode: r.sapCode,
+          count: r.count + count,
+          amount: r.amount + amt);
+    }
+
+    for (final m in movements) {
+      final isActing = !isAdm && data.isActingAdmOn(movementShiftDate(m));
+      final target = isActing ? acting : base;
+      final adm = isAdm || isActing;
+      final loa = double.tryParse(m.loa) ?? 0;
+      final beam = double.tryParse(m.beam) ?? 0;
+      for (final a in m.allowances) {
+        if (a == 'length') {
+          final amt = lengthAmount(loa);
+          if (amt > 0) addTo(target, 'Length (LOA>175.26m)', amt, 1);
+        } else if (a == 'cold') {
+          if (!adm) addTo(target, 'Cold Movement', coldAmount(), 1);
+        } else if (a == 'nightact') {
+          if (!adm) {
+            if (loa >= 175.26) {
+              addTo(target, 'Night act (L>175.26 m)', 205, 1);
+            } else {
+              addTo(target, 'Night act (L<175.26 m)', 135, 1);
+            }
+          }
+        } else if (a == 'lock') {
+          addTo(target, 'Lock to App. Jetty & vice versa',
+              lockAmount(adm: adm), 1);
+        } else if (a == 'navigation') {
+          for (final t in m.navigationTypes) {
+            String? cat;
+            if (t == 'inward-210') {
+              cat = 'Night navigation (Inward L>210 m)';
+            } else if (t == 'outward-180-210') {
+              cat = 'Night navigation (Outward L= 180 to 210 m)';
+            } else if (t == 'outward-210') {
+              cat = 'Night navigation (Outward L>210 m)';
+            } else if (t == 'outward-beam') {
+              cat = 'Night navigation (Outward Beam>30.5 m)';
+            } else if (t == 'double-banking' || t == 'unbanking') {
+              if (!adm) cat = 'Night navigation (Double banking & unbanking)';
+            }
+            if (cat == null) continue;
+            addTo(target, cat, navigationAmount(t, loa, beam, adm: adm), 1);
+          }
+        }
+      }
+    }
+
+    // Weightage hours. The acting-ADM section credits full 8 hours per acting
+    // night date that is an "N" attendance shift; the main table carries the
+    // remaining hours so the two sections sum to the app's weighted hours.
+    final actingNCount = !isAdm
+        ? data.actingAdmDates
+            .map((d) => normDateKey(d))
+            .where((k) =>
+                attShifts[k] == 'N' &&
+                movementsForMonth(data).any((m) => normDateKey(m.date) == k))
+            .length
+        : 0;
+    final actingHours = actingNCount * 8.0;
+
+    final summary = computeSummary(data);
+    final baseHours =
+        (summary.nightWeightageHours - actingHours).clamp(0, 1e9).toDouble();
+    final weightageAmount = summary.hasWeightageAmount
+        ? (summary.lines.firstWhere(
+                    (l) => l.key == 'weightage',
+                    orElse: () => ClaimSummaryLine('weightage', '', 0))
+                .amount)
+        : 0.0;
+
+    // Rebuild rows in template order, carrying counts/amounts and placing the
+    // night-weightage row inline with its credited hours.
+    CalcSheetRow fromTemplate(CalcSheetRow t, Map<String, CalcSheetRow> acc,
+        double hours) {
+      if (t.isWeightage) {
+        return CalcSheetRow(
+            category: t.category,
+            rateChart: t.rateChart,
+            oldCode: t.oldCode,
+            sapCode: t.sapCode,
+            hours: hours,
+            amount: weightageAmount);
+      }
+      final a = acc[t.category] ?? t;
+      return CalcSheetRow(
+          category: t.category,
+          rateChart: t.rateChart,
+          oldCode: t.oldCode,
+          sapCode: t.sapCode,
+          count: a.count,
+          amount: a.amount);
+    }
+
+    final baseOut = <CalcSheetRow>[
+      for (final r in baseRows) fromTemplate(r, base, baseHours)
+    ];
+    final actingOut = <CalcSheetRow>[
+      for (final r in actingRows) fromTemplate(r, acting, actingHours)
+    ];
+    final hasActing =
+        actingOut.any((r) => !r.isWeightage && r.count > 0);
+
+    return CalcSheet(
+      isAdm: isAdm,
+      hasActing: hasActing,
+      baseRows: baseOut,
+      baseWeightageHours: baseHours,
+      actingRows: actingOut,
+      actingWeightageHours: actingHours,
+      grandTotal: summary.grandTotal,
+      weightageAmount: weightageAmount,
+    );
+  }
+}
+
+/// A single row of the official "Calculation Sheet of Marine Allowances"
+/// register, e.g. "Night navigation (Inward L>210 m)" with its rate, SAP and
+/// old ledger codes, the number of movements and the payable amount.
+class CalcSheetRow {
+  final String category;
+  final String rateChart;
+  final String oldCode;
+  final String sapCode;
+  final int count;
+  final double amount;
+
+  /// Hours for the night-weightage row (0 for other rows).
+  final double hours;
+
+  CalcSheetRow({
+    required this.category,
+    required this.rateChart,
+    required this.oldCode,
+    required this.sapCode,
+    this.count = 0,
+    this.amount = 0,
+    this.hours = 0,
+  });
+
+  bool get isWeightage => rateChart.toLowerCase().startsWith('as per');
+}
+
+/// The two (or three) tables printed on the claim calculation sheet:
+/// the main allowance table for the claimant's own designation and, for a
+/// Dock/Berthing Pilot who performed ADM duty in the month, a separate
+/// "Acting ADM Allowances" table.
+class CalcSheet {
+  final bool isAdm;
+  final bool hasActing;
+
+  /// Rows of the main (own-designation) allowance table.
+  final List<CalcSheetRow> baseRows;
+
+  /// Night weightage hours for the main table's HRS row.
+  final double baseWeightageHours;
+
+  /// Rows of the "Acting ADM Allowances" table (empty unless [hasActing]).
+  final List<CalcSheetRow> actingRows;
+
+  /// Night weightage hours for the acting-ADM table's HRS row.
+  final double actingWeightageHours;
+
+  /// Claimed grand total (matches the on-screen/app computed total).
+  final double grandTotal;
+
+  /// Night weightage shown as a payable amount (contractual Berthing Pilot).
+  final double weightageAmount;
+
+  CalcSheet({
+    required this.isAdm,
+    required this.hasActing,
+    required this.baseRows,
+    required this.baseWeightageHours,
+    required this.actingRows,
+    required this.actingWeightageHours,
+    required this.grandTotal,
+    required this.weightageAmount,
+  });
 }

@@ -761,4 +761,107 @@ void main() {
       expect(AllowanceCalculator.movementShiftDate(mEarlyMorning, attShifts: {'2026-8-22': 'OFF', '2026-8-23': 'M'}), '2026-8-23');
     });
   });
+
+  group('calcSheet', () {
+    Movement nav(String date, String type, {String loa = '220', String beam = '32'}) =>
+        Movement(
+            date: date,
+            vessel: 'V',
+            from: 'LOCK',
+            to: 'LOCK',
+            start: '21:00',
+            end: '23:00',
+            loa: loa,
+            beam: beam,
+            allowances: ['navigation'],
+            navigationTypes: [type]);
+
+    Movement length(String date, {String loa = '180'}) => Movement(
+        date: date,
+        vessel: 'V',
+        from: 'OFF',
+        to: 'B1',
+        start: '09:00',
+        end: '11:00',
+        loa: loa,
+        allowances: ['length']);
+
+    CalcSheetRow rowOf(List<CalcSheetRow> rows, String category) =>
+        rows.firstWhere((r) => r.category == category);
+
+    test('ADM sheet uses ADM rates and omits cold/nightact rows', () {
+      final data = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Assistant Dock Master'));
+      data.attLocked = true;
+      data.movements
+        ..add(nav('15/09/26', 'outward-210'))
+        ..add(length('16/09/26'));
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.isAdm, true);
+      expect(sheet.hasActing, false);
+      final cats = sheet.baseRows.map((r) => r.category).toList();
+      expect(cats.any((c) => c.contains('Night act')), false);
+      expect(cats.any((c) => c.contains('Cold')), false);
+      expect(rowOf(sheet.baseRows, 'Night navigation (Outward L>210 m)').amount, 1010);
+      expect(rowOf(sheet.baseRows, 'Night navigation (Outward L>210 m)').count, 1);
+      expect(rowOf(sheet.baseRows, 'Length (LOA>175.26m)').amount, 310);
+      expect(rowOf(sheet.baseRows, 'Lock to App. Jetty & vice versa').rateChart, '1500');
+    });
+
+    test('length row only counts movements with LOA >= 175.26', () {
+      final data = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Berthing Pilot'));
+      data.movements
+        ..add(length('15/09/26', loa: '180'))
+        ..add(length('16/09/26', loa: '150'));
+      final sheet = AllowanceCalculator.calcSheet(data);
+      final lengthRow = rowOf(sheet.baseRows, 'Length (LOA>175.26m)');
+      expect(lengthRow.count, 1);
+      expect(lengthRow.amount, 310);
+    });
+
+    test('BP has weightage amount, DP and ADM weightage amount is zero', () {
+      final bp = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026', designation: 'Berthing Pilot', pay: '83000'));
+      bp.attLocked = true;
+      bp.attShifts = {'2026-9-15': 'N'};
+      bp.movements.add(length('15/09/26'));
+      expect(AllowanceCalculator.calcSheet(bp).weightageAmount, greaterThan(0));
+
+      final dp = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026', designation: 'Dock Pilot'));
+      dp.attLocked = true;
+      dp.attShifts = {'2026-9-15': 'N'};
+      dp.movements.add(length('15/09/26'));
+      expect(AllowanceCalculator.calcSheet(dp).weightageAmount, 0);
+
+      final adm = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026', designation: 'Assistant Dock Master'));
+      adm.attLocked = true;
+      adm.attShifts = {'2026-9-15': 'N'};
+      adm.movements.add(length('15/09/26'));
+      expect(AllowanceCalculator.calcSheet(adm).weightageAmount, 0);
+    });
+
+    test('BP/DP acting-ADM splits movements into a separate acting table', () {
+      final data = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Dock Pilot'));
+      data.attLocked = true;
+      data.actingAdmDates = ['2026-9-15'];
+      data.movements
+        ..add(nav('15/09/26', 'outward-210')) // acting (ADM rate 1010)
+        ..add(nav('16/09/26', 'outward-210')); // own (DP rate 810)
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.hasActing, true);
+      final actingNav = rowOf(sheet.actingRows, 'Night navigation (Outward L>210 m)');
+      expect(actingNav.count, 1);
+      expect(actingNav.amount, 1010);
+      final baseNav = rowOf(sheet.baseRows, 'Night navigation (Outward L>210 m)');
+      expect(baseNav.count, 1);
+      expect(baseNav.amount, 810);
+    });
+  });
 }

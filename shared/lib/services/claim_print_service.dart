@@ -8,12 +8,10 @@ import 'package:printing/printing.dart';
 
 import '../models/claim_data.dart';
 import '../models/master_data.dart';
-import '../models/movement.dart';
 import 'allowance_calculator.dart';
 
 class ClaimPrintService {
   static const _fallbackName = 'claim';
-  static const _perPage = 55;
 
   static final _money =
       NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -49,54 +47,34 @@ class ClaimPrintService {
   static Future<Uint8List> buildPdf(ClaimData data) async {
     final theme = await _getTheme();
     final doc = pw.Document(theme: theme);
-    final summary = AllowanceCalculator.computeSummary(data);
-    final movements = AllowanceCalculator.movementsForMonth(data);
+    final sheet = AllowanceCalculator.calcSheet(data);
 
-    final pages = <pw.Page>[];
-    if (movements.isEmpty) {
-      pages.add(_page(
-          data: data,
-          summary: summary,
-          chunk: const [],
-          showSummary: true));
-    } else {
-      for (var i = 0; i < movements.length; i += _perPage) {
-        final chunk = movements.skip(i).take(_perPage).toList();
-        final showSummary = i + _perPage >= movements.length;
-        pages.add(_page(
-            data: data,
-            summary: summary,
-            chunk: chunk,
-            showSummary: showSummary));
-      }
-    }
-
-    for (final page in pages) {
-      doc.addPage(page);
-    }
-    return doc.save();
-  }
-
-  static pw.Page _page({
-    required ClaimData data,
-    required ClaimSummary summary,
-    required List<Movement> chunk,
-    required bool showSummary,
-  }) {
-    return pw.Page(
+    doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(28.3, 22.7, 28.3, 22.7),
       build: (_) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _printHeader(),
-          _titleRow(data),
-          _masterGrid(data),
-          _movementTable(chunk, empty: chunk.isEmpty),
-          if (showSummary) _summaryBox(data, summary),
+          _headerBlock(data, sheet),
+          _table(
+            title: sheet.isAdm
+                ? 'CALCULATION SHEET OF MARINE ALLOWANCES FOR ADM'
+                : 'CALCULATION SHEET OF MARINE ALLOWANCES FOR DP/BP',
+            rows: sheet.baseRows,
+          ),
+          if (sheet.hasActing) ...[
+            pw.SizedBox(height: 6),
+            _table(
+              title: 'ACTING ADM ALLOWANCES',
+              rows: sheet.actingRows,
+            ),
+          ],
+          pw.SizedBox(height: 6),
+          _grandTotalRow(sheet),
         ],
       ),
-    );
+    ));
+    return doc.save();
   }
 
   static String _d(String v) => v.trim().isEmpty ? '—' : v.trim();
@@ -107,224 +85,198 @@ class ClaimPrintService {
     return month.trim();
   }
 
-  static pw.Widget _printHeader() {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 3),
-      padding: const pw.EdgeInsets.only(bottom: 2),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(
-            bottom: pw.BorderSide(color: PdfColors.black, width: 1.5)),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text('SYAMA PRASAD MOOKERJEE PORT, KOLKATA',
-              textAlign: pw.TextAlign.center,
-              style:
-                  pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-          pw.Text('Haldia Dock Complex / Marine Office',
-              textAlign: pw.TextAlign.center,
-              style: const pw.TextStyle(fontSize: 8.5)),
-          pw.Text('Monthly Allowance Claim Register',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                  fontSize: 8.5,
-                  fontWeight: pw.FontWeight.bold,
-                  decoration: pw.TextDecoration.underline)),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _titleRow(ClaimData data) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 3),
-      padding: const pw.EdgeInsets.only(bottom: 2),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(bottom: pw.BorderSide(color: PdfColors.black)),
-      ),
-      child: pw.Text(
-        'Month: ${_monthLabel(data.master.month)}    Name: ${_d(data.master.name)}    '
-        'Desg: ${_d(data.master.designation)}',
-        textAlign: pw.TextAlign.center,
-        style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold),
-      ),
-    );
-  }
-
-  static pw.Widget _masterGrid(ClaimData data) {
-    final master = data.master;
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          _masterField('Designation', _d(master.designation)),
-          _masterField('Employee / DPS ID', _d(master.employee)),
-          _masterField(
-              master.isBerthingPilot ? 'Consolidated Pay' : 'Basic Pay',
-              _d(master.isBerthingPilot ? master.pay : master.basic)),
-          _masterField('Bill Abstract No.', _d(master.bill)),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _masterField(String label, String value) {
-    return pw.Expanded(
-      child: pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 3),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
+  static pw.Widget _headerBlock(ClaimData data, CalcSheet sheet) {
+    final m = data.master;
+    final isBP = m.isBerthingPilot;
+    final payValue = isBP ? _d(m.pay) : _d(m.basic);
+    final secondRight = sheet.isAdm ? _d(m.ada) : '';
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text(
+          sheet.isAdm
+              ? 'CALCULATION SHEET OF MARINE ALLOWANCES FOR ADM'
+              : 'CALCULATION SHEET OF MARINE ALLOWANCES FOR DP/BP',
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blueGrey900),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          columnWidths: const {
+            0: pw.FlexColumnWidth(30),
+            1: pw.FlexColumnWidth(50),
+            2: pw.FlexColumnWidth(30),
+            3: pw.FlexColumnWidth(50),
+          },
+          border: pw.TableBorder.all(color: PdfColors.black),
           children: [
-            pw.Text(label,
-                style: pw.TextStyle(
-                    fontSize: 6.5, fontWeight: pw.FontWeight.bold)),
-            pw.Text(value,
-                style: pw.TextStyle(
-                    fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+            _kvRow2('NAME', _d(m.name), 'MONTH/YEAR',
+                _monthLabel(data.master.month)),
+            _kvRow2('DESIGNATION', _d(m.designation), 'PAY', payValue),
+            _kvRow2('EMPLOYEE NO', _d(m.employee), 'ADA', secondRight),
           ],
         ),
-      ),
-    );
-  }
-
-  static pw.Widget _movementTable(List<Movement> chunk, {required bool empty}) {
-    return pw.Table(
-      columnWidths: const {
-        0: pw.FlexColumnWidth(48),
-        1: pw.FlexColumnWidth(62),
-        2: pw.FlexColumnWidth(48),
-        3: pw.FlexColumnWidth(48),
-        4: pw.FlexColumnWidth(36),
-        5: pw.FlexColumnWidth(36),
-        6: pw.FlexColumnWidth(28),
-        7: pw.FlexColumnWidth(28),
-      },
-      border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.5),
-      defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
-      children: [
-        _tableHeader(['DATE', 'VESSEL', 'FROM BERTH', 'TO BERTH', 'START',
-            'END', 'LOA', 'BEAM']),
-        if (empty)
-          _tableRow(const ['', '', '', '', '', '', '', ''])
-        else
-          for (final m in chunk)
-            _tableRow([
-              m.date,
-              m.vessel,
-              m.from,
-              m.to,
-              m.start,
-              m.end,
-              m.loa,
-              m.beam,
-            ]),
+        pw.SizedBox(height: 8),
       ],
     );
   }
 
-  static pw.TableRow _tableHeader(List<String> cells) {
+  static pw.TableRow _kvRow2(String l1, String v1, String l2, String v2) {
+    pw.Container cell(String label, String value, {bool isLabel = false}) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
+        color: isLabel ? PdfColors.grey200 : null,
+        child: pw.Text(
+            isLabel ? label : (value.isEmpty ? '' : value),
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+      );
+    }
+
+    return pw.TableRow(
+      children: [
+        cell(l1, '', isLabel: true),
+        cell('', v1),
+        cell(l2, '', isLabel: true),
+        cell('', v2),
+      ],
+    );
+  }
+
+  static pw.Widget _table({
+    required String title,
+    required List<CalcSheetRow> rows,
+  }) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text(title,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+                fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 3),
+        pw.Table(
+          columnWidths: const {
+            0: pw.FlexColumnWidth(10),
+            1: pw.FlexColumnWidth(52),
+            2: pw.FlexColumnWidth(14),
+            3: pw.FlexColumnWidth(12),
+            4: pw.FlexColumnWidth(12),
+            5: pw.FlexColumnWidth(12),
+            6: pw.FlexColumnWidth(15),
+          },
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.75),
+          defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+          children: [
+            _calHead(),
+            for (var i = 0; i < rows.length; i++)
+              _calRow(i + 1, rows[i]),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static pw.TableRow _calHead() {
     return pw.TableRow(
       decoration: const pw.BoxDecoration(color: PdfColors.grey300),
       children: [
-        for (final c in cells)
+        for (final c in const [
+          'SL NO',
+          'CATAGORY',
+          'RATE CHART',
+          'CODE (OLD)',
+          'CODE (SAP-NEW)',
+          'TOTAL NO OF MOVEMENTS',
+          'TOTAL AMOUNT',
+        ])
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 1),
+            padding: const pw.EdgeInsets.symmetric(
+                horizontal: 2, vertical: 3),
             child: pw.Text(c,
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                    fontSize: 6, fontWeight: pw.FontWeight.bold)),
+                    fontSize: 6.5, fontWeight: pw.FontWeight.bold)),
           ),
       ],
     );
   }
 
-  static pw.TableRow _tableRow(List<String> cells) {
+  static pw.TableRow _calRow(int sl, CalcSheetRow row) {
+    if (row.isWeightage) {
+      return pw.TableRow(
+        children: [
+          _calCell('$sl'),
+          pw.Container(
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+            child: pw.Text(row.category,
+                style: const pw.TextStyle(fontSize: 7)),
+          ),
+          _calCell(row.rateChart),
+          _calCell(row.oldCode),
+          _calCell(row.sapCode),
+          _calCell(row.hours == 0 ? '' : '${row.hours.toStringAsFixed(2)} HRS'),
+          _calCell(row.amount == 0 ? '' : _money.format(row.amount)),
+        ],
+      );
+    }
     return pw.TableRow(
       children: [
-        for (final c in cells)
-          pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 1),
-            child: pw.Text(c,
-                textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 6.5)),
-          ),
+        _calCell('$sl'),
+        pw.Container(
+          padding:
+              const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+          child: pw.Text(row.category,
+              style: const pw.TextStyle(fontSize: 7)),
+        ),
+        _calCell(row.rateChart),
+        _calCell(row.oldCode),
+        _calCell(row.sapCode),
+        _calCell(row.count == 0 ? '' : '${row.count}'),
+        _calCell(
+            row.amount == 0 ? '' : _money.format(row.amount)),
       ],
     );
   }
 
-  static pw.Widget _summaryBox(ClaimData data, ClaimSummary summary) {
+  static pw.Widget _grandTotalRow(CalcSheet sheet) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 5),
-      padding: const pw.EdgeInsets.all(4),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: pw.BoxDecoration(
-        color: PdfColors.grey200,
         border: pw.Border.all(color: PdfColors.black),
       ),
-      child: pw.Column(
+      child: pw.Row(
         children: [
-          pw.Text('Claim summary:',
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 3),
-          if (summary.lines.isEmpty)
-            pw.Text('No payable claim rows yet.',
-                textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 7.5))
-          else
-            pw.Wrap(
-              alignment: pw.WrapAlignment.center,
-              spacing: 2,
-              runSpacing: 2,
-              children: [
-                for (final line in summary.lines)
-                  pw.Container(
-                    padding:
-                        const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.white,
-                      border: pw.Border.all(color: PdfColors.grey400),
-                    ),
-                    child: pw.Text(
-                        line.key == 'weightage' &&
-                                summary.nightWeightageHours > 0
-                            ? '${line.label}: ${_money.format(line.amount)} · '
-                                '${summary.nightWeightageHours.toStringAsFixed(2)} hrs'
-                            : '${line.label}: ${_money.format(line.amount)}',
-                        style: const pw.TextStyle(fontSize: 7.5)),
-                  ),
-              ],
-            ),
-          if (summary.nightWeightageHours > 0 && !summary.hasWeightageAmount)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 2),
-              child: pw.Container(
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.white,
-                  border: pw.Border.all(color: PdfColors.grey400),
-                ),
-                child: pw.Text(
-                    'Night Weightage: '
-                    '${summary.nightWeightageHours.toStringAsFixed(2)} hrs',
-                    style: const pw.TextStyle(fontSize: 7.5)),
-              ),
-            ),
-          pw.SizedBox(height: 3),
-          pw.Text('Grand total: ${_money.format(summary.grandTotal)}',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-          if (summary.payWarning)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 2),
-              child: pw.Text(
-                'Enter Consolidated Basic Pay to calculate Night Weightage.',
-                textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.orange),
-              ),
-            ),
+          pw.Expanded(
+            child: pw.Text('GRAND TOTAL',
+                style: pw.TextStyle(
+                    fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Text(sheet.weightageAmount == 0
+              ? '(Except Night Weightage)'
+              : '',
+              style: pw.TextStyle(
+                  fontSize: 6.5, color: PdfColors.grey800)),
+          pw.SizedBox(width: 12),
+          pw.Text(_money.format(sheet.grandTotal),
+              style: pw.TextStyle(
+                  fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
         ],
       ),
+    );
+  }
+
+  static pw.Container _calCell(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      child: pw.Text(text,
+          textAlign: pw.TextAlign.center,
+          style: const pw.TextStyle(fontSize: 7)),
     );
   }
 }

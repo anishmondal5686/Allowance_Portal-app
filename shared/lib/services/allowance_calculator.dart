@@ -863,20 +863,28 @@ class AllowanceCalculator {
     final summary = computeSummary(data);
     final baseHours =
         (summary.nightWeightageHours - actingHours).clamp(0, 1e9).toDouble();
-    final weightageAmount = summary.hasWeightageAmount
+    final totalWeightageAmount = summary.hasWeightageAmount
         ? (summary.lines.firstWhere(
                     (l) => l.key == 'weightage',
                     orElse: () => ClaimSummaryLine('weightage', '', 0))
                 .amount)
         : 0.0;
 
+    // Split the night-weightage pay amount across the two tables in proportion
+    // to their credited hours: the acting-ADM table carries the amount for the
+    // acting-date nights, the main table the rest. They sum to the single
+    // weightage amount, so the grand total is unchanged. When there is no
+    // payable amount (DP/ADM), both stay 0 and the tables show hours only.
+    final actingWeightageAmount = totalWeightageAmount == 0
+        ? 0.0
+        : totalWeightageAmount * (actingHours / summary.nightWeightageHours);
+    final baseWeightageAmount = totalWeightageAmount - actingWeightageAmount;
+
     // Rebuild rows in template order, carrying counts/amounts and placing the
-    // night-weightage row inline with its credited hours. The weightage pay
-    // amount is shown only on the main (base) table; the acting-ADM table's
-    // weightage row shows hours only so the amount is never double-counted
-    // across the two tables.
+    // night-weightage row inline with its credited hours and its own share of
+    // the pay amount.
     CalcSheetRow fromTemplate(CalcSheetRow t, Map<String, CalcSheetRow> acc,
-        double hours, {bool weightageAmountRow = false}) {
+        double hours, double amount) {
       if (t.isWeightage) {
         return CalcSheetRow(
             category: t.category,
@@ -884,7 +892,7 @@ class AllowanceCalculator {
             oldCode: t.oldCode,
             sapCode: t.sapCode,
             hours: hours,
-            amount: weightageAmountRow ? weightageAmount : 0);
+            amount: amount);
       }
       final a = acc[t.category] ?? t;
       return CalcSheetRow(
@@ -898,11 +906,11 @@ class AllowanceCalculator {
 
     final baseOut = <CalcSheetRow>[
       for (final r in baseRows)
-        fromTemplate(r, base, baseHours, weightageAmountRow: true)
+        fromTemplate(r, base, baseHours, baseWeightageAmount)
     ];
     final actingOut = <CalcSheetRow>[
       for (final r in actingRows)
-        fromTemplate(r, acting, actingHours, weightageAmountRow: false)
+        fromTemplate(r, acting, actingHours, actingWeightageAmount)
     ];
     final hasActing =
         actingOut.any((r) => !r.isWeightage && r.count > 0);
@@ -912,10 +920,12 @@ class AllowanceCalculator {
       hasActing: hasActing,
       baseRows: baseOut,
       baseWeightageHours: baseHours,
+      baseWeightageAmount: baseWeightageAmount,
       actingRows: actingOut,
       actingWeightageHours: actingHours,
+      actingWeightageAmount: actingWeightageAmount,
       grandTotal: summary.grandTotal,
-      weightageAmount: weightageAmount,
+      weightageAmount: totalWeightageAmount,
     );
   }
 }
@@ -961,16 +971,23 @@ class CalcSheet {
   /// Night weightage hours for the main table's HRS row.
   final double baseWeightageHours;
 
+  /// Night weightage pay amount credited to the main (own-designation) table.
+  final double baseWeightageAmount;
+
   /// Rows of the "Acting ADM Allowances" table (empty unless [hasActing]).
   final List<CalcSheetRow> actingRows;
 
   /// Night weightage hours for the acting-ADM table's HRS row.
   final double actingWeightageHours;
 
+  /// Night weightage pay amount credited to the acting-ADM table.
+  final double actingWeightageAmount;
+
   /// Claimed grand total (matches the on-screen/app computed total).
   final double grandTotal;
 
-  /// Night weightage shown as a payable amount (contractual Berthing Pilot).
+  /// Total night weightage shown as a payable amount (sum of the base and
+  /// acting table amounts; 0 for a Dock Pilot or ADM, who are paid by hours).
   final double weightageAmount;
 
   CalcSheet({
@@ -978,8 +995,10 @@ class CalcSheet {
     required this.hasActing,
     required this.baseRows,
     required this.baseWeightageHours,
+    required this.baseWeightageAmount,
     required this.actingRows,
     required this.actingWeightageHours,
+    required this.actingWeightageAmount,
     required this.grandTotal,
     required this.weightageAmount,
   });

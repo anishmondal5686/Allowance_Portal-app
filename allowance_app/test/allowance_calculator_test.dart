@@ -864,7 +864,45 @@ void main() {
       expect(baseNav.amount, 810);
     });
 
-    test('acting-ADM BP weightage amount appears only in the base table', () {
+    test('acting-ADM DP shows night weightage hours only (no amount)', () {
+      final data = ClaimData(
+        master: MasterData(basic: '50000', ada: '15000',
+            designation: 'Dock Pilot'),
+      );
+      data.attLocked = true;
+      data.attShifts = {'2026-8-10': 'N', '2026-8-11': 'N'};
+      data.actingAdmDates.add('2026-8-11');
+      data.movements
+        ..add(Movement(
+            date: '10/08/26',
+            from: 'LOCK',
+            to: 'LOCK',
+            start: '21:00',
+            end: '23:00',
+            loa: '180',
+            allowance: 'length')) // own night
+        ..add(Movement(
+            date: '11/08/26',
+            from: 'LOCK',
+            to: 'LOCK',
+            start: '21:00',
+            end: '23:00',
+            loa: '180',
+            allowance: 'length')); // acting night
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.hasActing, true);
+      expect(sheet.weightageAmount, 0);
+      expect(sheet.baseWeightageAmount, 0);
+      expect(sheet.actingWeightageAmount, 0);
+      final baseW = rowOf(sheet.baseRows, 'Night weightage (HRS)');
+      final actingW = rowOf(sheet.actingRows, 'Night weightage (HRS)');
+      expect(baseW.amount, 0);
+      expect(actingW.amount, 0);
+      expect(baseW.hours, greaterThan(0));
+      expect(actingW.hours, greaterThan(0));
+    });
+
+    test('acting-ADM BP weightage amount is split across both tables', () {
       final data = ClaimData(
         master: MasterData(pay: '100000', designation: 'Berthing Pilot'),
       );
@@ -891,11 +929,17 @@ void main() {
       final sheet = AllowanceCalculator.calcSheet(data);
       expect(sheet.hasActing, true);
       expect(sheet.weightageAmount, greaterThan(0));
+      expect(sheet.actingWeightageAmount, greaterThan(0));
       final baseW = rowOf(sheet.baseRows, 'Night weightage (HRS)');
       final actingW = rowOf(sheet.actingRows, 'Night weightage (HRS)');
-      expect(baseW.amount, sheet.weightageAmount);
+      // Acting table carries the acting-nights amount; base carries the rest.
+      expect(actingW.amount, sheet.actingWeightageAmount);
+      expect(baseW.amount, closeTo(sheet.baseWeightageAmount, 0.001));
+      expect(sheet.actingWeightageAmount + sheet.baseWeightageAmount,
+          closeTo(sheet.weightageAmount, 0.001));
+      expect(actingW.hours, sheet.actingWeightageHours);
+      expect(baseW.hours, sheet.baseWeightageHours);
       expect(baseW.hours, greaterThan(0));
-      expect(actingW.amount, 0);
       expect(actingW.hours, greaterThan(0));
     });
   });

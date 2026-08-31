@@ -51,11 +51,12 @@ class ClaimPrintService {
 
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(28.3, 22.7, 28.3, 22.7),
+      margin: const pw.EdgeInsets.fromLTRB(28.3, 30, 28.3, 30),
       build: (_) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _headerBlock(data, sheet),
+          pw.SizedBox(height: 12),
           _table(
             title: sheet.isAdm
                 ? 'CALCULATION SHEET OF MARINE ALLOWANCES FOR ADM'
@@ -63,13 +64,13 @@ class ClaimPrintService {
             rows: sheet.baseRows,
           ),
           if (sheet.hasActing) ...[
-            pw.SizedBox(height: 6),
+            pw.SizedBox(height: 14),
             _table(
               title: 'ACTING ADM ALLOWANCES',
               rows: sheet.actingRows,
             ),
           ],
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 14),
           _grandTotalRow(sheet),
         ],
       ),
@@ -99,11 +100,11 @@ class ClaimPrintService {
               : 'CALCULATION SHEET OF MARINE ALLOWANCES FOR DP/BP',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.blueGrey900),
         ),
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: 10),
         pw.Table(
           columnWidths: const {
             0: pw.FlexColumnWidth(30),
@@ -111,7 +112,7 @@ class ClaimPrintService {
             2: pw.FlexColumnWidth(30),
             3: pw.FlexColumnWidth(50),
           },
-          border: pw.TableBorder.all(color: PdfColors.black),
+          border: pw.TableBorder.all(color: PdfColors.black, width: 1),
           children: [
             _kvRow2('NAME', _d(m.name), 'MONTH/YEAR',
                 _monthLabel(data.master.month)),
@@ -119,7 +120,7 @@ class ClaimPrintService {
             _kvRow2('EMPLOYEE NO', _d(m.employee), 'ADA', secondRight),
           ],
         ),
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: 10),
       ],
     );
   }
@@ -127,13 +128,13 @@ class ClaimPrintService {
   static pw.TableRow _kvRow2(String l1, String v1, String l2, String v2) {
     pw.Container cell(String label, String value, {bool isLabel = false}) {
       return pw.Container(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
         color: isLabel ? PdfColors.grey200 : null,
         child: pw.Text(
             isLabel ? label : (value.isEmpty ? '' : value),
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-                fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                fontSize: 10, fontWeight: pw.FontWeight.bold)),
       );
     }
 
@@ -157,8 +158,8 @@ class ClaimPrintService {
         pw.Text(title,
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-                fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 3),
+                fontSize: 12, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 5),
         pw.Table(
           columnWidths: const {
             0: pw.FlexColumnWidth(10),
@@ -169,7 +170,7 @@ class ClaimPrintService {
             5: pw.FlexColumnWidth(12),
             6: pw.FlexColumnWidth(15),
           },
-          border: pw.TableBorder.all(color: PdfColors.black, width: 0.75),
+          border: pw.TableBorder.all(color: PdfColors.black, width: 1),
           defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
           children: [
             _calHead(),
@@ -196,11 +197,11 @@ class ClaimPrintService {
         ])
           pw.Container(
             padding: const pw.EdgeInsets.symmetric(
-                horizontal: 2, vertical: 3),
+                horizontal: 3, vertical: 5),
             child: pw.Text(c,
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                    fontSize: 6.5, fontWeight: pw.FontWeight.bold)),
+                    fontSize: 9, fontWeight: pw.FontWeight.bold)),
           ),
       ],
     );
@@ -213,9 +214,9 @@ class ClaimPrintService {
           _calCell('$sl'),
           pw.Container(
             padding:
-                const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
             child: pw.Text(row.category,
-                style: const pw.TextStyle(fontSize: 7)),
+                style: const pw.TextStyle(fontSize: 9)),
           ),
           _calCell(row.rateChart),
           _calCell(row.oldCode),
@@ -230,9 +231,9 @@ class ClaimPrintService {
         _calCell('$sl'),
         pw.Container(
           padding:
-              const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
           child: pw.Text(row.category,
-              style: const pw.TextStyle(fontSize: 7)),
+              style: const pw.TextStyle(fontSize: 9)),
         ),
         _calCell(row.rateChart),
         _calCell(row.oldCode),
@@ -246,26 +247,27 @@ class ClaimPrintService {
 
   static pw.Widget _grandTotalRow(CalcSheet sheet) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 7),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.black),
+        color: PdfColors.grey100,
+        border: pw.Border.all(color: PdfColors.black, width: 1),
       ),
       child: pw.Row(
         children: [
           pw.Expanded(
             child: pw.Text('GRAND TOTAL',
                 style: pw.TextStyle(
-                    fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                    fontSize: 11, fontWeight: pw.FontWeight.bold)),
           ),
           pw.Text(sheet.weightageAmount == 0
               ? '(Except Night Weightage)'
               : '',
               style: pw.TextStyle(
-                  fontSize: 6.5, color: PdfColors.grey800)),
+                  fontSize: 8.5, color: PdfColors.grey800)),
           pw.SizedBox(width: 12),
           pw.Text(_money.format(sheet.grandTotal),
               style: pw.TextStyle(
-                  fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                  fontSize: 11, fontWeight: pw.FontWeight.bold)),
         ],
       ),
     );
@@ -273,10 +275,10 @@ class ClaimPrintService {
 
   static pw.Container _calCell(String text) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
       child: pw.Text(text,
           textAlign: pw.TextAlign.center,
-          style: const pw.TextStyle(fontSize: 7)),
+          style: const pw.TextStyle(fontSize: 9)),
     );
   }
 }

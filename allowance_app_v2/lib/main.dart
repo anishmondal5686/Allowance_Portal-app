@@ -19,7 +19,7 @@ class AllowanceApp extends StatefulWidget {
 }
 
 class _AllowanceAppState extends State<AllowanceApp> {
-  static const _appVersion = '2.0.13';
+  static const _appVersion = '2.0.14';
   final ClaimData _claimData = ClaimData();
   final LocalStore _localStore = LocalStore();
   final ThemeStore _themeStore = ThemeStore();

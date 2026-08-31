@@ -1,16 +1,15 @@
 # Allowance Portal
 
-Flutter apps for claiming marine allowances of **Haldia Dock Complex** (Haldia, West Bengal, India). The project produces two near-identical mobile apps — an older personal build and the current distributed build — that share one domain/service core.
+A Flutter app for claiming marine allowances of **Haldia Dock Complex** (Haldia, West Bengal, India).
 
 ## Apps
 
 | App | Package | Purpose |
 |-----|---------|---------|
-| `allowance_app` | `com.allowance.allowance_app` | v1 (legacy, personal) — Google Drive sync enabled |
-| `allowance_app_v2` | `com.allowance.allowance_app_v2` | v2 (current, distributed) — local-only |
+| `allowance_app_v2` | `com.allowance.allowance_app_v2` | Current, distributed local-only app |
 | `shared` | `allowance_shared` | Common package: models, services, and theming |
 
-Domain logic (models, the allowance calculator, official-forms and claim-print services, theme, and in-app update service) lives **once** in `shared/lib/` and applies to both apps. Screen UI and app entry points remain per-app.
+Domain logic (models, the allowance calculator, official-forms and claim-print services, theme, and in-app update service) lives **once** in `shared/lib/` and applies to the app. Screen UI and app entry point remain in the app.
 
 ## Features
 
@@ -22,26 +21,24 @@ Domain logic (models, the allowance calculator, official-forms and claim-print s
 - **Attendance & roster** — mark daily shifts (`N`/`E`/`M`/`OFF`), with future dates predicted from an off-day anchored rotation pattern.
 - **Official forms** — print official PDFs (length & cold, night act & weightage, lock to approach jetty, night navigation) with per-designation footers (incl. Asst. Dock Master signature) and continuous serial numbering across pages.
 - **Claim summary printout** — an Excel-style "Calculation Sheet of Marine Allowances" (ADM or DP/BP table, plus Acting ADM table when applicable) with a compact per-allowance `SUMMARY` line and `GRAND TOTAL`.
-- **In-app updates** — checks GitHub releases on launch and installs the matching APK (v1 users get v1, v2 users get v2).
+- **In-app updates** — checks GitHub releases on launch and installs the matching APK.
 - **Theming** — modern theme with Noto Sans Devanagari font support.
 
 ## Releases
 
-Prebuilt APKs are published as GitHub releases. The latest release includes both `allowance_app_v1_RELEASE.apk` and `allowance_app_v2_RELEASE.apk`.
+Prebuilt APKs are published as GitHub releases. The latest release includes `allowance_app_v2_RELEASE.apk`.
 
 ## Tech Stack
 
 - Flutter / Dart
 - `pdf` + `printing` for PDF generation and printing
 - `path_provider`, `file_picker`, `share_plus` for files
-- v1 additionally uses `google_sign_in` / `googleapis` for Drive sync
 - In-app update + install via a platform channel (`MainActivity.kt`)
 
 ## Project Structure
 
 ```
-allowance_app/       # v1 app (Drive sync, personal)
-allowance_app_v2/    # v2 app (local-only, distributed)
+allowance_app_v2/    # app (local-only)
 shared/              # shared models, services, theme, fonts
   lib/
     models/          # claim_data, master_data, movement
@@ -52,13 +49,12 @@ shared/              # shared models, services, theme, fonts
 
 ## Development
 
-Both apps depend on `shared` via a path dependency, so domain/service changes are edited in `shared/` and apply to both apps automatically. Screen changes are mirrored manually across the two apps.
+The app depends on `shared` via a path dependency, so domain/service changes are edited in `shared/` and apply automatically.
 
 ### Verify
 
 ```bash
 cd shared && flutter analyze
-cd allowance_app && flutter analyze && flutter test
 cd allowance_app_v2 && flutter analyze && flutter test
 ```
 

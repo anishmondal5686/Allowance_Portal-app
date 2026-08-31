@@ -871,9 +871,12 @@ class AllowanceCalculator {
         : 0.0;
 
     // Rebuild rows in template order, carrying counts/amounts and placing the
-    // night-weightage row inline with its credited hours.
+    // night-weightage row inline with its credited hours. The weightage pay
+    // amount is shown only on the main (base) table; the acting-ADM table's
+    // weightage row shows hours only so the amount is never double-counted
+    // across the two tables.
     CalcSheetRow fromTemplate(CalcSheetRow t, Map<String, CalcSheetRow> acc,
-        double hours) {
+        double hours, {bool weightageAmountRow = false}) {
       if (t.isWeightage) {
         return CalcSheetRow(
             category: t.category,
@@ -881,7 +884,7 @@ class AllowanceCalculator {
             oldCode: t.oldCode,
             sapCode: t.sapCode,
             hours: hours,
-            amount: weightageAmount);
+            amount: weightageAmountRow ? weightageAmount : 0);
       }
       final a = acc[t.category] ?? t;
       return CalcSheetRow(
@@ -894,10 +897,12 @@ class AllowanceCalculator {
     }
 
     final baseOut = <CalcSheetRow>[
-      for (final r in baseRows) fromTemplate(r, base, baseHours)
+      for (final r in baseRows)
+        fromTemplate(r, base, baseHours, weightageAmountRow: true)
     ];
     final actingOut = <CalcSheetRow>[
-      for (final r in actingRows) fromTemplate(r, acting, actingHours)
+      for (final r in actingRows)
+        fromTemplate(r, acting, actingHours, weightageAmountRow: false)
     ];
     final hasActing =
         actingOut.any((r) => !r.isWeightage && r.count > 0);

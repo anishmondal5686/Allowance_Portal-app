@@ -863,5 +863,40 @@ void main() {
       expect(baseNav.count, 1);
       expect(baseNav.amount, 810);
     });
+
+    test('acting-ADM BP weightage amount appears only in the base table', () {
+      final data = ClaimData(
+        master: MasterData(pay: '100000', designation: 'Berthing Pilot'),
+      );
+      data.attLocked = true;
+      data.attShifts = {'2026-8-10': 'N', '2026-8-11': 'N'};
+      data.actingAdmDates.add('2026-8-11');
+      data.movements
+        ..add(Movement(
+            date: '10/08/26',
+            from: 'LOCK',
+            to: 'LOCK',
+            start: '21:00',
+            end: '23:00',
+            loa: '180',
+            allowance: 'length')) // own night
+        ..add(Movement(
+            date: '11/08/26',
+            from: 'LOCK',
+            to: 'LOCK',
+            start: '21:00',
+            end: '23:00',
+            loa: '180',
+            allowance: 'length')); // acting night
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.hasActing, true);
+      expect(sheet.weightageAmount, greaterThan(0));
+      final baseW = rowOf(sheet.baseRows, 'Night weightage (HRS)');
+      final actingW = rowOf(sheet.actingRows, 'Night weightage (HRS)');
+      expect(baseW.amount, sheet.weightageAmount);
+      expect(baseW.hours, greaterThan(0));
+      expect(actingW.amount, 0);
+      expect(actingW.hours, greaterThan(0));
+    });
   });
 }

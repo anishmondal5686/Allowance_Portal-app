@@ -520,9 +520,13 @@ class AllowanceCalculator {
   /// Returns the predicted roster shift ('OFF', 'N', 'E', 'M') for [dt]
   /// based on the claimant's [offDay] and starting [rotation].
   ///
-  /// When [claimYear]/[claimMonth] are provided the week-index is computed
-  /// continuously from the claim month's first off-day so that predictions
-  /// across month boundaries stay aligned with the rotation.
+  /// The week-index is continuous: it advances once per 7-day off-day block,
+  /// phase-aligned to the off-day, and is normalised so that [rotation] is the
+  /// shift of the claim month's first working block. Because the index is
+  /// anchored globally (not to each month's own first off-day), the rotation
+  /// carries correctly across month boundaries — e.g. the trailing days of the
+  /// previous month shown in the calendar keep their own shift instead of
+  /// resetting to the new month's week zero.
   static String predictRosterShift({
     required DateTime dt,
     required String offDay,
@@ -535,44 +539,53 @@ class AllowanceCalculator {
     final dow = dt.weekday % 7;
     if (offDayNum != null && dow == offDayNum) return 'OFF';
     if (rotation.isEmpty) return '';
-    const rot = {'N': 'E', 'E': 'M', 'M': 'N'};
-    final weekIndex = (claimYear != null && claimMonth != null)
-        ? _weekIndexContinuous(dt, claimYear, claimMonth, offDayNum)
-        : _weekIndex(dt.year, dt.month, dt.day, offDayNum);
-    var shift = rotation;
-    for (var w = 0; w < weekIndex; w++) {
-      shift = rot[shift] ?? shift;
+    final anchorYear = claimYear ?? dt.year;
+    final anchorMonth = claimMonth ?? dt.month;
+    final weekIndex = _globalWeekIndex(dt, offDayNum) -
+        _firstBlockIndex(anchorYear, anchorMonth, offDayNum);
+    return _advance(rotation, weekIndex);
+  }
+
+  /// Advances a shift by [steps] around the N -> E -> M -> N cycle. Handles
+  /// negative steps (a date earlier than the anchor block) via modular
+  /// arithmetic, so cross-month days keep the shift carried from a prior month.
+  static String _advance(String shift, int steps) {
+    const order = ['N', 'E', 'M'];
+    final i = order.indexOf(shift);
+    if (i < 0) return shift;
+    final n = ((i + steps) % order.length + order.length) % order.length;
+    return order[n];
+  }
+
+  /// Continuous weekly block index aligned to the off-day cycle: block
+  /// boundaries fall on the day after an off-day, so each 7-day block (and
+  /// hence each off-day) advances the rotation by one step regardless of the
+  /// calendar month. The absolute phase is arbitrary — it is cancelled by
+  /// [predictRosterShift]/[fillRoster] normalising to the anchor month.
+  static int _globalWeekIndex(DateTime dt, int? offDayNum) {
+    final epoch = DateTime(1970, 1, 1);
+    final epochW = epoch.weekday % 7; // 1970-01-01 is a Thursday (4)
+    if (offDayNum == null) return dt.difference(epoch).inDays ~/ 7;
+    // A block boundary is the day after an off-day: weekday (offDayNum+1)%7.
+    final target = (offDayNum + 1) % 7;
+    final shift = (target - epochW + 7) % 7;
+    final ref = epoch.add(Duration(days: shift));
+    return dt.difference(ref).inDays ~/ 7;
+  }
+
+  /// Global week index of the month's first working block (the smallest index
+  /// over the month's non-off days). Normalising to this value keeps
+  /// [rotation] meaning "the shift of the month's first working block".
+  static int _firstBlockIndex(int year, int month, int? offDayNum) {
+    final days = DateTime(year, month + 1, 0).day;
+    var min = 1 << 30;
+    for (var d = 1; d <= days; d++) {
+      final dt = DateTime(year, month, d);
+      if (offDayNum != null && (dt.weekday % 7) == offDayNum) continue;
+      final idx = _globalWeekIndex(dt, offDayNum);
+      if (idx < min) min = idx;
     }
-    return shift;
-  }
-
-  /// Returns how many off-days have occurred before the given [day] in the
-  /// month, anchoring the first off-day to its natural weekday position.
-  /// When [offDayNum] is null (no off-day configured) the index falls back
-  /// to fixed 7-day blocks from day 1.
-  static int _weekIndex(int year, int month, int day, int? offDayNum) {
-    if (offDayNum == null) return (day - 1) ~/ 7;
-    final startWeekday = DateTime(year, month, 1).weekday;
-    final firstOffDay = offDayNum >= startWeekday
-        ? offDayNum - startWeekday + 1
-        : offDayNum - startWeekday + 8;
-    if (day < firstOffDay) return 0;
-    return (day - firstOffDay) ~/ 7 + 1;
-  }
-
-  /// Continuous week-index anchored to [anchorYear]/[anchorMonth]'s first
-  /// off-day.  This ensures the rotation carries across month boundaries.
-  static int _weekIndexContinuous(
-      DateTime dt, int anchorYear, int anchorMonth, int? offDayNum) {
-    if (offDayNum == null) return (dt.day - 1) ~/ 7;
-    final anchorStartWeekday = DateTime(anchorYear, anchorMonth, 1).weekday;
-    final firstOffInAnchor = offDayNum >= anchorStartWeekday
-        ? offDayNum - anchorStartWeekday + 1
-        : offDayNum - anchorStartWeekday + 8;
-    final anchorFirstOff = DateTime(anchorYear, anchorMonth, firstOffInAnchor);
-    if (!dt.isAfter(anchorFirstOff)) return 0;
-    final diff = dt.difference(anchorFirstOff).inDays;
-    return ((diff - 1) ~/ 7) + 1;
+    return min == 1 << 30 ? 0 : min;
   }
 
   /// Strips future dates (after today) from [shifts] so they are not treated
@@ -606,21 +619,18 @@ class AllowanceCalculator {
     final out = Map<String, String>.of(existing);
     if (offDay.isEmpty && rotation.isEmpty) return out;
     final offDayNum = offDay.isNotEmpty ? int.tryParse(offDay) : null;
-    const rot = {'N': 'E', 'E': 'M', 'M': 'N'};
+    final firstBlock = _firstBlockIndex(year, month, offDayNum);
     final totalDays = DateTime(year, month + 1, 0).day;
     for (var d = 1; d <= totalDays; d++) {
       final key = '$year-$month-$d';
       if (out.containsKey(key)) continue;
-      final dow = DateTime(year, month, d).weekday % 7;
+      final dt = DateTime(year, month, d);
+      final dow = dt.weekday % 7;
       if (offDayNum != null && dow == offDayNum) {
         out[key] = 'OFF';
       } else if (rotation.isNotEmpty) {
-        final weekIndex = _weekIndex(year, month, d, offDayNum);
-        var shift = rotation;
-        for (var w = 0; w < weekIndex; w++) {
-          shift = rot[shift] ?? shift;
-        }
-        out[key] = shift;
+        out[key] =
+            _advance(rotation, _globalWeekIndex(dt, offDayNum) - firstBlock);
       }
     }
     return out;

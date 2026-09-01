@@ -943,4 +943,35 @@ void main() {
       expect(actingW.hours, greaterThan(0));
     });
   });
+
+  group('roster', () {
+    test('rotation carries across the month boundary', () {
+      // Off day Tuesday, first September working block is M. The trailing
+      // Aug 31 (Monday, the day before the Sep 1 off) must keep its prior
+      // shift (E) rather than resetting to the new month's week zero.
+      String pred(int m, int d) => AllowanceCalculator.predictRosterShift(
+          dt: DateTime(2026, m, d),
+          offDay: '2',
+          rotation: 'M',
+          claimYear: 2026,
+          claimMonth: 9);
+      expect(pred(8, 31), 'E');
+      expect(pred(9, 1), 'OFF');
+      for (var d = 2; d <= 7; d++) {
+        expect(pred(9, d), 'M');
+      }
+      expect(pred(9, 8), 'OFF');
+    });
+
+    test('fillRoster reproduces the anchored first-week pattern', () {
+      final filled = AllowanceCalculator.fillRoster(
+          year: 2026, month: 8, offDay: '2', rotation: 'N', existing: {});
+      expect(filled['2026-8-1'], 'N');
+      expect(filled['2026-8-2'], 'N');
+      expect(filled['2026-8-3'], 'N');
+      expect(filled['2026-8-4'], 'OFF');
+      expect(filled['2026-8-5'], 'E');
+      expect(filled['2026-8-31'], 'E');
+    });
+  });
 }

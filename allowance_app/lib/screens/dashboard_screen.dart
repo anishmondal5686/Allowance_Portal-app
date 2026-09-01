@@ -410,6 +410,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Prompts the user before changing the claim month. Starting a new month
+  /// clears the current session's movements and confirmed attendance while
+  /// preserving master details and the recurring roster pattern
+  /// (off day + rotation). Other saved months on the device are untouched.
+  Future<void> _changeMonth(int newMonth, int newYear) async {
+    final currentMonth = widget.claimData.master.month;
+    final parsed = MasterData.parseMonthYear(currentMonth);
+    final curM = parsed?.$2 ?? _selectedMonth;
+    final curY = parsed?.$1 ?? _selectedYear;
+    if (newMonth == curM && newYear == curY) return;
+
+    final label = '${MasterData.monthNames[newMonth - 1][0]}'
+        '${MasterData.monthNames[newMonth - 1].substring(1).toLowerCase()} '
+        '$newYear';
+
+    final start = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start a new month?'),
+        content: Text(
+          'You selected $label.\n\n'
+          'Start a fresh claim for $label? This clears movements and saved '
+          'attendance for the current editing session. Your other saved '
+          'months are kept unchanged, and your master details (name, '
+          'designation, pay) and roster pattern are kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Start New'),
+          ),
+        ],
+      ),
+    );
+    if (start != true) return;
+
+    setState(() {
+      _selectedMonth = newMonth;
+      _selectedYear = newYear;
+      widget.claimData.master = MasterData(
+        month: MasterData.monthKey(newYear, newMonth),
+        name: _nameCtrl.text.trim().toUpperCase(),
+        designation: _designation,
+        employee: _empCtrl.text.trim(),
+        pay: _payCtrl.text.trim(),
+        bill: _billCtrl.text.trim(),
+        basic: _basicCtrl.text.trim(),
+        ada: _adaCtrl.text.trim(),
+      );
+      widget.claimData.movements.clear();
+      widget.claimData.attShifts.clear();
+      widget.claimData.attManualDates.clear();
+      widget.claimData.actingAdmDates.clear();
+    });
+    widget.onDataChanged();
+    _showSnack('Started new claim for $label');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -490,8 +552,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _ModernMonthPicker(
                       selectedMonth: _selectedMonth,
                       selectedYear: _selectedYear,
-                      onMonthChanged: (v) => setState(() => _selectedMonth = v),
-                      onYearChanged: (v) => setState(() => _selectedYear = v),
+                      onMonthChanged: (v) => _changeMonth(v, _selectedYear),
+                      onYearChanged: (v) => _changeMonth(_selectedMonth, v),
                     ),
                     const SizedBox(height: 12),
                     _ModernTextField(

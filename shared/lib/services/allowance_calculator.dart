@@ -252,6 +252,33 @@ class AllowanceCalculator {
     }
   }
 
+  /// Night navigation types for a movement. Returns the explicitly recorded
+  /// types when present; otherwise derives the lock-based outward/inward type
+  /// from the movement's locations (OFF/LOCK) and dimensions, mirroring
+  /// [autoDetect] and the night-navigation form. This keeps the summary and
+  /// calc-sheet figures consistent with the night navigation form even when a
+  /// navigation allowance was added without an explicit type. OFF-related
+  /// double-banking/unbanking are only used when explicitly recorded.
+  static List<String> navTypesFor(Movement m) {
+    if (m.navigationTypes.isNotEmpty) return m.navigationTypes;
+    final loa = double.tryParse(m.loa) ?? 0;
+    final beam = double.tryParse(m.beam) ?? 0;
+    final from = m.from.toUpperCase();
+    final to = m.to.toUpperCase();
+    final out = <String>[];
+    if (to.contains('LOCK')) {
+      if (loa >= 210) {
+        out.add('outward-210');
+      } else if (loa >= 180) {
+        out.add('outward-180-210');
+      } else if (beam >= 30.5) {
+        out.add('outward-beam');
+      }
+    }
+    if (from.contains('LOCK') && loa >= 210) out.add('inward-210');
+    return out;
+  }
+
   static double amountFor({
     required String allowance,
     required Movement movement,
@@ -271,10 +298,7 @@ class AllowanceCalculator {
       case 'lock':
         return lockAmount(adm: adm);
       case 'navigation':
-        if (movement.navigationTypes.isEmpty) {
-          return navigationAmount('', loa, beam, adm: adm);
-        }
-        return movement.navigationTypes.fold(
+        return navTypesFor(movement).fold(
             0,
             (sum, t) =>
                 sum + navigationAmount(t, loa, beam, adm: adm));
@@ -837,7 +861,7 @@ class AllowanceCalculator {
           addTo(target, 'Lock to App. Jetty & vice versa',
               lockAmount(adm: adm), 1);
         } else if (a == 'navigation') {
-          for (final t in m.navigationTypes) {
+          for (final t in navTypesFor(m)) {
             String? cat;
             if (t == 'inward-210') {
               cat = 'Night navigation (Inward L>210 m)';

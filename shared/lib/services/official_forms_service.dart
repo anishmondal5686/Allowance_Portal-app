@@ -290,6 +290,11 @@ class OfficialFormsService {
     331.5, 348.8, 366.0, 383.2, 400.5, 417.8, 435.0, 452.2, 469.5, 486.8,
     504.0, 521.2,
   ];
+  // Length-only (ADM/acting ADM) form: no Cold table below, so the Length
+  // table is extended by 5 more rows to use the previously blank space.
+  static const _lcRowsExt = [
+    ..._lcRows, 538.45, 555.7, 572.95, 590.2, 607.45,
+  ];
   static const _coldRows = [541.5, 558.0, 575.2, 592.5, 609.8, 627.0, 644.2];
   static const _lcHeaderLabels = [
     _L('SL.', 52.0, 164.6),
@@ -337,6 +342,8 @@ class OfficialFormsService {
       w.add(_txt(f, 'SYAMA PRASAD MOOKERJEE PORT, KOLKATA', 145.1, 53.0, 12.75,
           bold: true));
       w.add(_txt(f, 'MARINE OFFICE', 259.3, 70.7, 9.75, bold: true));
+      w.add(_txt(f, 'Dated:', 440.9, 73.0, 9.0, bold: true));
+      w.add(_hLine(472.0, 560.0, 84.0));
       w.add(_txt(
           f,
           'Claim form for the Payment of Length and Cold Movement Allowances',
@@ -416,18 +423,26 @@ class OfficialFormsService {
       w.add(_cell(f, 'Certified that the statement is correct', [380.0, 550.2],
           681.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Manager', [45.0, 210.0], 733.9, 7.88, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division,', [45.0, 210.0], 744.4, 7.88,
+      w.add(_cell(f, 'Manager', [45.0, 170.0], 733.9, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [45.0, 170.0], 744.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [45.0, 210.0], 754.9, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [45.0, 170.0], 754.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Asstt. Dock Master', [210.0, 380.0], 733.9, 7.88,
+      w.add(_cell(f, 'Dy. Dock Master', [170.0, 290.0], 733.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
+      w.add(_cell(f, 'Marine Ops. Division', [170.0, 290.0], 744.4, 7.88,
           bold: true));
-      w.add(_cell(f, _signatureLabel(m.isAdm), [380.0, 550.2], 733.9, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [170.0, 290.0], 754.9, 7.88,
           bold: true));
-      w.add(_cell(f, _signatureRole(m), [380.0, 550.2], 744.4, 7.88,
+      w.add(_cell(f, 'Asst. Dock Master', [290.0, 410.0], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Marine Ops. Division', [290.0, 410.0], 744.4, 7.88,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [290.0, 410.0], 754.9, 7.88,
+          bold: true));
+      w.add(_cell(f, _signatureLabel(m.isAdm), [410.0, 550.0], 733.9, 7.88,
+          bold: true));
+      w.add(_cell(f, _signatureRole(m), [410.0, 550.0], 744.4, 7.88,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -454,15 +469,17 @@ class OfficialFormsService {
             (data.master.isAdm ||
                 acting.contains(AllowanceCalculator.movementShiftDate(m))))
         .toList();
-    final pages = math.max(1, (length.length / 20).ceil());
+    final pages = math.max(1, (length.length / 25).ceil());
     final m = data.master;
     for (var p = 0; p < pages; p++) {
-      final chunk = length.skip(p * 20).take(20).toList();
+      final chunk = length.skip(p * 25).take(25).toList();
       final w = <pw.Widget>[];
       w.add(_txt(f, 'HALDIA DOCK COMPLEX', 200.7, 33.7, 15.0, bold: true));
       w.add(_txt(f, 'SYAMA PRASAD MOOKERJEE PORT, KOLKATA', 145.1, 53.0, 12.75,
           bold: true));
       w.add(_txt(f, 'MARINE OFFICE', 259.3, 70.7, 9.75, bold: true));
+      w.add(_txt(f, 'Dated:', 440.9, 73.0, 9.0, bold: true));
+      w.add(_hLine(472.0, 560.0, 84.0));
       w.add(_txt(
           f,
           'Claim form for the Payment of Length Allowance',
@@ -496,14 +513,14 @@ class OfficialFormsService {
           147.4,
           8.62,
           bold: true));
-      w.addAll(_grid(_lcRows, _lcXs, gray: true, grayRows: 1));
+      w.addAll(_grid(_lcRowsExt, _lcXs, gray: true, grayRows: 1));
       for (final l in _lcHeaderLabels) {
         w.add(_txt(f, l.t, l.x, l.y, 7.88, bold: true));
       }
-      for (var i = 0; i < 20; i++) {
+      for (var i = 0; i < 25; i++) {
         final mv = i < chunk.length ? chunk[i] : null;
         final y = 180.8 + i * 17.25;
-        w.add(_cell(f, mv == null ? '' : '${p * 20 + i + 1}', _lcCols[0], y, 8.25));
+        w.add(_cell(f, mv == null ? '' : '${p * 25 + i + 1}', _lcCols[0], y, 8.25));
         w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -526,8 +543,12 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [45.0, 210.0], 754.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Asstt. Dock Master', [210.0, 380.0], 733.9, 7.88,
-          bold: true));
+      // When the ADM (or an acting ADM) is the claimant, the approver between
+      // the Manager and the claimant is the Dy. Dock Master, not another
+      // Asst. Dock Master.
+      final isAdmClaim = data.master.isAdm || data.actingAdmDates.isNotEmpty;
+      w.add(_cell(f, isAdmClaim ? 'Dy. Dock Master' : 'Asstt. Dock Master',
+          [210.0, 380.0], 733.9, 7.88, bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [210.0, 380.0], 744.4, 7.88,
           bold: true));
       w.add(_cell(f, _signatureLabel(m.isAdm), [380.0, 550.2], 733.9, 7.88,
@@ -624,6 +645,8 @@ class OfficialFormsService {
           10.5,
           font: f.devanagari));
       w.add(_txt(f, 'MARINE OFFICE', 262.2, 71.4, 9.0, bold: true));
+      w.add(_txt(f, 'Dated:', 440.9, 73.0, 9.0, bold: true));
+      w.add(_hLine(472.0, 560.0, 84.0));
       w.add(_txt(
           f,
           'Claim form for the Payment of Night Act Allowance and '
@@ -770,6 +793,8 @@ class OfficialFormsService {
           10.5,
           font: f.devanagari));
       w.add(_txt(f, 'MARINE OFFICE HALDIA', 262.2, 71.4, 9.0, bold: true));
+      w.add(_txt(f, 'Dated:', 440.9, 73.0, 9.0, bold: true));
+      w.add(_hLine(472.0, 560.0, 84.0));
       w.add(_txt(
           f,
           'Claim form for the payment for Night Weightage Allowances',
@@ -1213,21 +1238,41 @@ class OfficialFormsService {
       w.add(_cell(f, 'Certified that the statement is correct.', [370.0, 555.5],
           605.7, 8.62,
           bold: true));
-      w.add(_cell(f, 'Manager', [39.7, 200.0], 650.7, 8.62, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division,', [39.7, 200.0], 664.2, 8.62,
-          bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [39.7, 200.0], 676.9, 8.62,
-          bold: true));
-      w.add(_cell(f, 'Dy./Asst. Dock Master,', [200.0, 370.0], 650.7, 8.62,
-          bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 370.0], 664.2, 8.62,
-          bold: true));
       final isAdmDuty = admDuty || data.master.isAdm;
       final sigLine1 = _signatureLabel(isAdmDuty);
       final sigLine2 =
           admDuty ? 'Asst. Dock Master' : _signatureRole(data.master);
-      w.add(_cell(f, sigLine1, [370.0, 555.5], 650.7, 8.62, bold: true));
-      w.add(_cell(f, sigLine2, [370.0, 555.5], 664.2, 8.62, bold: true));
+      w.add(_cell(f, 'Manager', [39.7, 169.0], 650.7, 8.62, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [39.7, 169.0], 664.2, 8.62,
+          bold: true));
+      w.add(_cell(f, 'Haldia Dock Complex', [39.7, 169.0], 676.9, 8.62,
+          bold: true));
+      if (isAdmDuty) {
+        // ADM / acting-ADM: Manager | Dy./Asst. Dock Master | Claimant
+        w.add(_cell(f, 'Dy./Asst. Dock Master,', [169.0, 330.0], 650.7, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Haldia Dock Complex', [169.0, 330.0], 664.2, 8.62,
+            bold: true));
+        w.add(_cell(f, sigLine1, [330.0, 555.5], 650.7, 8.62, bold: true));
+        w.add(_cell(f, sigLine2, [330.0, 555.5], 664.2, 8.62, bold: true));
+      } else {
+        // Dock Pilot / Berthing Pilot: separate Dy. Dock Master + Asst.
+        // Dock Master signature fields, matching the night forms.
+        w.add(_cell(f, 'Dy. Dock Master', [169.0, 288.0], 650.7, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Marine Ops. Division', [169.0, 288.0], 664.2, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Haldia Dock Complex', [169.0, 288.0], 676.9, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Asst. Dock Master', [288.0, 407.0], 650.7, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Marine Ops. Division', [288.0, 407.0], 664.2, 8.62,
+            bold: true));
+        w.add(_cell(f, 'Haldia Dock Complex', [288.0, 407.0], 676.9, 8.62,
+            bold: true));
+        w.add(_cell(f, sigLine1, [407.0, 555.5], 650.7, 8.62, bold: true));
+        w.add(_cell(f, sigLine2, [407.0, 555.5], 664.2, 8.62, bold: true));
+      }
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -1312,6 +1357,8 @@ class OfficialFormsService {
       final chunk = items.skip(p * 10).take(10).toList();
       final w = <pw.Widget>[];
       w.add(_txt(f, 'K.P.P./8000 Sheets/03-2011', 28.3, 28.5, 8.25, bold: true));
+      w.add(_txt(f, 'Dated:', 660.0, 28.5, 8.25, bold: true));
+      w.add(_hLine(693.0, 738.0, 38.0));
       w.add(_txt(f, 'Code No.-44060036', 738.2, 28.5, 8.25, bold: true));
       w.add(_txt(
           f,

@@ -650,6 +650,32 @@ void main() {
             .amount,
       );
     });
+
+    test('ADM night navigation without explicit type still appears in summary', () {
+      // Regression: a nav movement saved with only 'navigation' and no
+      // navigationTypes (direction implied by from/to) was absent from the
+      // claim summary even though the night-navigation form listed it.
+      final data = ClaimData(
+        master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          basic: '83000',
+          ada: '46000',
+          designation: 'Assistant Dock Master',
+        ),
+      );
+      data.attLocked = true;
+      data.movements.add(Movement(
+          date: '15/09/26',
+          from: '13 OFF',
+          to: 'LOCK', // outward
+          start: '21:00',
+          end: '23:00',
+          loa: '220', // >= 210 -> outward-210, ADM 1010
+          allowances: ['navigation'])); // no navigationTypes
+      final summary = AllowanceCalculator.computeSummary(data);
+      final navLine = summary.lines.firstWhere((l) => l.key == 'navigation');
+      expect(navLine.amount, 1010);
+    });
   });
 
   group('month filtering', () {
@@ -941,6 +967,54 @@ void main() {
       expect(baseW.hours, sheet.baseWeightageHours);
       expect(baseW.hours, greaterThan(0));
       expect(actingW.hours, greaterThan(0));
+    });
+
+    test('ADM night navigation without explicit type still counts in calc sheet', () {
+      // Regression: a nav movement saved with only 'navigation' and no
+      // navigationTypes (from/to imply the direction) was omitted from the
+      // calc-sheet printout even though the night-navigation form showed it.
+      final data = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Assistant Dock Master'));
+      data.attLocked = true;
+      data.movements.add(Movement(
+          date: '15/09/26',
+          vessel: 'V',
+          from: 'LOCK',
+          to: 'OFF', // inward
+          start: '21:00',
+          end: '23:00',
+          loa: '220', // >= 210 -> inward-210, 540
+          allowances: ['navigation'])); // no navigationTypes
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(rowOf(sheet.baseRows, 'Night navigation (Inward L>210 m)').count, 1);
+      expect(rowOf(sheet.baseRows, 'Night navigation (Inward L>210 m)').amount, 540);
+      expect(rowOf(sheet.baseRows, 'Night navigation (Inward L>210 m)').rateChart, '540');
+    });
+
+    test('acting-ADM nav without explicit type counts at ADM rate in calc sheet', () {
+      // A DP/BP doing acting ADM uses the same ADM direction convention
+      // (basin->lock = outward) and ADM rates even when no nav type was saved.
+      final data = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Dock Pilot'));
+      data.attLocked = true;
+      data.actingAdmDates = ['2026-9-15'];
+      data.movements.add(Movement(
+          date: '15/09/26',
+          vessel: 'V',
+          from: 'BASIN',
+          to: 'LOCK', // outward, ADM rate
+          start: '21:00',
+          end: '23:00',
+          loa: '220', // >= 210 -> outward-210, ADM 1010
+          allowances: ['navigation'])); // no navigationTypes
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.hasActing, true);
+      expect(rowOf(sheet.actingRows, 'Night navigation (Outward L>210 m)').count, 1);
+      expect(rowOf(sheet.actingRows, 'Night navigation (Outward L>210 m)').amount, 1010);
+      expect(
+          rowOf(sheet.baseRows, 'Night navigation (Outward L>210 m)').count, 0);
     });
   });
 

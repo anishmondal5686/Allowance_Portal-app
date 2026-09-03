@@ -41,6 +41,11 @@ class DriveService {
   _AuthClient? _client;
   String? _baseFolderId;
   String? _userFolderId;
+  Future<io.Directory> Function()? _dirOverride;
+
+  DriveService({Future<io.Directory> Function()? dirOverride}) {
+    _dirOverride = dirOverride;
+  }
 
   static const _fileNameFallback = 'claim.json';
   static const _appFolderName = 'Allowance App';
@@ -314,11 +319,37 @@ class DriveService {
   }
 
   Future<io.Directory> _localUserDir() async {
+    final override = _dirOverride;
+    if (override != null) return override();
     final base = await getApplicationDocumentsDirectory();
     final dir = io.Directory('${base.path}${io.Platform.pathSeparator}'
         '$_appFolderName${io.Platform.pathSeparator}$_userKey');
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
+  }
+
+  /// Maximum number of monthly local backup files to keep. When a save would
+  /// exceed this, the oldest monthly files are deleted so the newest 12 remain.
+  static const int maxMonths = 12;
+
+  /// Parses a stored monthly filename (e.g. 'September2026.json') back into a
+  /// canonical month key like '2026-09'. Returns null for non-month files such
+  /// as 'claim.json'.
+  static String? monthKeyFromFileName(String fname) {
+    var base = fname;
+    if (base.endsWith('.json')) {
+      base = base.substring(0, base.length - '.json'.length);
+    }
+    final match = RegExp(r'^([A-Za-z]+)(\d{4})$').firstMatch(base);
+    if (match == null) return null;
+    final monthName = match.group(1)!;
+    final year = int.tryParse(match.group(2)!);
+    if (year == null) return null;
+    final month = MasterData.monthNames
+            .indexWhere((m) => m.toLowerCase() == monthName.toLowerCase()) +
+        1;
+    if (month < 1 || month > 12) return null;
+    return MasterData.monthKey(year, month);
   }
 
   Future<String> saveLocalBackup(ClaimData data) async {
@@ -327,7 +358,65 @@ class DriveService {
         '${dir.path}${io.Platform.pathSeparator}${fileNameFor(data)}');
     final jsonString = jsonEncode(data.toJson());
     await file.writeAsString(jsonString);
+    await pruneLocalBackupsToNewest(maxMonths);
     return file.path;
+  }
+
+  /// Returns the canonical keys of all saved monthly local backups (e.g.
+  /// '2026-09'), sorted newest-first by file modification time. Non-month
+  /// files are ignored.
+  Future<List<String>> listSavedMonths() async {
+    final dir = await _localUserDir();
+    final months = <String, DateTime>{};
+    if (await dir.exists()) {
+      await for (final entity in dir.list()) {
+        if (entity is! io.File || !entity.path.endsWith('.json')) continue;
+        final key = monthKeyFromFileName(entity.uri.pathSegments.last);
+        if (key == null) continue;
+        if (!months.containsKey(key)) {
+          months[key] = await entity.lastModified();
+        }
+      }
+    }
+    final sorted = months.keys.toList()
+      ..sort((a, b) => months[b]!.compareTo(months[a]!));
+    return sorted;
+  }
+
+  /// Keeps only the newest [n] monthly local backup files, deleting the rest.
+  /// When two or more files map to the same month key, only the newest one is
+  /// retained for that month (older duplicates are treated as redundant).
+  Future<void> pruneLocalBackupsToNewest(int n) async {
+    if (n < 1) return;
+    final dir = await _localUserDir();
+    if (!await dir.exists()) return;
+    final newestByMonth = <String, io.File>{};
+    final stamped = <io.File, DateTime>{};
+    await for (final entity in dir.list()) {
+      if (entity is! io.File || !entity.path.endsWith('.json')) continue;
+      final key = monthKeyFromFileName(entity.uri.pathSegments.last);
+      if (key == null) continue;
+      final modified = await entity.lastModified();
+      stamped[entity] = modified;
+      final current = newestByMonth[key];
+      if (current == null || modified.isAfter(stamped[current]!)) {
+        newestByMonth[key] = entity;
+      }
+    }
+    final dupes = <String>{for (final f in stamped.keys) f.path};
+    dupes.removeAll(newestByMonth.values.map((f) => f.path));
+    final sortedNewest = newestByMonth.values.toList()
+      ..sort((a, b) => stamped[b]!.compareTo(stamped[a]!));
+    for (final f in sortedNewest.skip(n)) {
+      dupes.add(f.path);
+    }
+    for (final path in dupes) {
+      try {
+        await io.File(path).delete();
+      } catch (_) {
+        // Ignore individual delete failures (e.g. in-use file).
+      }
+    }
   }
 
   Future<ClaimData?> loadLocalBackup({String? month}) async {

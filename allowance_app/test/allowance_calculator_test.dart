@@ -455,7 +455,7 @@ void main() {
       expect(summary.nightWeightageHours, greaterThan(0));
     });
 
-    test('ADM night weightage is credited as hours, not an amount', () {
+    test('ADM night weightage is credited as an amount from Basic Pay + ADA', () {
       final data = ClaimData(
         master: MasterData(
             designation: 'Assistant Dock Master',
@@ -475,14 +475,17 @@ void main() {
           loa: '180',
           allowance: 'nightact'));
       final summary = AllowanceCalculator.computeSummary(data);
-      expect(summary.lines.any((l) => l.key == 'weightage'), isFalse);
+      final weightLine = summary.lines.firstWhere((l) => l.key == 'weightage');
+      // pay = basic 173790 + ada 94348 = 268138; 24 hrs.
+      expect(weightLine.amount, closeTo((24 / 1440) * 268138, 1));
+      expect(summary.hasWeightageAmount, isTrue);
       expect(summary.nightWeightageHours, closeTo(24, 0.001));
       expect(summary.grandTotal,
           summary.lines.fold<double>(0, (s, l) => s + l.amount));
       expect(summary.payWarning, isFalse);
     });
 
-    test('Dock Pilot night weightage is credited as hours, not an amount', () {
+    test('Dock Pilot night weightage is credited as an amount from Basic Pay + ADA', () {
       final data = ClaimData(
         master: MasterData(designation: 'Dock Pilot',
             basic: '89000',
@@ -497,7 +500,10 @@ void main() {
           loa: '180',
           allowance: 'nightact'));
       final summary = AllowanceCalculator.computeSummary(data);
-      expect(summary.lines.any((l) => l.key == 'weightage'), isFalse);
+      final weightLine = summary.lines.firstWhere((l) => l.key == 'weightage');
+      // pay = basic 89000 + ada 43000 = 132000; 14 hrs.
+      expect(weightLine.amount, closeTo((14 / 1440) * 132000, 1));
+      expect(summary.hasWeightageAmount, isTrue);
       // 10th: 480 - 120 movement overlap = 360; 11th: 480. Total 840 min.
       expect(summary.nightWeightageHours, closeTo(14, 0.001));
       expect(summary.grandTotal,
@@ -597,8 +603,7 @@ void main() {
       expect(summary.nightWeightageHours, closeTo(8, 0.001));
     });
 
-    test('Dock Pilot acting as ADM keeps hours-only weightage with full-8h '
-        'acting nights', () {
+    test('Dock Pilot acting as ADM earns a weightage amount from Basic Pay + ADA', () {
       final data = ClaimData(
         master: MasterData(
             designation: 'Dock Pilot', basic: '89000', ada: '43000'),
@@ -613,7 +618,10 @@ void main() {
           loa: '180',
           allowance: 'nightact'));
       final summary = AllowanceCalculator.computeSummary(data);
-      expect(summary.lines.any((l) => l.key == 'weightage'), isFalse);
+      final weightLine = summary.lines.firstWhere((l) => l.key == 'weightage');
+      // pay = basic 89000 + ada 43000 = 132000; 14 hrs.
+      expect(weightLine.amount, closeTo((14 / 1440) * 132000, 1));
+      expect(summary.hasWeightageAmount, isTrue);
       // 10th: 480 - 120 = 360; 11th acting: 480 → 840 min = 14 hrs.
       expect(summary.nightWeightageHours, closeTo(14, 0.001));
       expect(summary.grandTotal,
@@ -848,7 +856,7 @@ void main() {
       expect(lengthRow.amount, 310);
     });
 
-    test('BP has weightage amount, DP and ADM weightage amount is zero', () {
+    test('BP, DP and ADM all earn a night weightage amount', () {
       final bp = ClaimData(master: MasterData(
           month: 'SEPTEMBER, 2026', designation: 'Berthing Pilot', pay: '83000'));
       bp.attLocked = true;
@@ -857,18 +865,20 @@ void main() {
       expect(AllowanceCalculator.calcSheet(bp).weightageAmount, greaterThan(0));
 
       final dp = ClaimData(master: MasterData(
-          month: 'SEPTEMBER, 2026', designation: 'Dock Pilot'));
+          month: 'SEPTEMBER, 2026', designation: 'Dock Pilot',
+          basic: '89000', ada: '43000'));
       dp.attLocked = true;
       dp.attShifts = {'2026-9-15': 'N'};
       dp.movements.add(length('15/09/26'));
-      expect(AllowanceCalculator.calcSheet(dp).weightageAmount, 0);
+      expect(AllowanceCalculator.calcSheet(dp).weightageAmount, greaterThan(0));
 
       final adm = ClaimData(master: MasterData(
-          month: 'SEPTEMBER, 2026', designation: 'Assistant Dock Master'));
+          month: 'SEPTEMBER, 2026', designation: 'Assistant Dock Master',
+          basic: '173790', ada: '94348'));
       adm.attLocked = true;
       adm.attShifts = {'2026-9-15': 'N'};
       adm.movements.add(length('15/09/26'));
-      expect(AllowanceCalculator.calcSheet(adm).weightageAmount, 0);
+      expect(AllowanceCalculator.calcSheet(adm).weightageAmount, greaterThan(0));
     });
 
     test('BP/DP acting-ADM splits movements into a separate acting table', () {
@@ -890,7 +900,7 @@ void main() {
       expect(baseNav.amount, 810);
     });
 
-    test('acting-ADM DP shows night weightage hours only (no amount)', () {
+    test('acting-ADM DP weightage amount is split across both tables', () {
       final data = ClaimData(
         master: MasterData(basic: '50000', ada: '15000',
             designation: 'Dock Pilot'),
@@ -917,13 +927,15 @@ void main() {
             allowance: 'length')); // acting night
       final sheet = AllowanceCalculator.calcSheet(data);
       expect(sheet.hasActing, true);
-      expect(sheet.weightageAmount, 0);
-      expect(sheet.baseWeightageAmount, 0);
-      expect(sheet.actingWeightageAmount, 0);
+      expect(sheet.weightageAmount, greaterThan(0));
+      expect(sheet.baseWeightageAmount, greaterThan(0));
+      expect(sheet.actingWeightageAmount, greaterThan(0));
       final baseW = rowOf(sheet.baseRows, 'Night weightage (HRS)');
       final actingW = rowOf(sheet.actingRows, 'Night weightage (HRS)');
-      expect(baseW.amount, 0);
-      expect(actingW.amount, 0);
+      expect(baseW.amount, closeTo(sheet.baseWeightageAmount, 0.001));
+      expect(actingW.amount, sheet.actingWeightageAmount);
+      expect(sheet.baseWeightageAmount + sheet.actingWeightageAmount,
+          closeTo(sheet.weightageAmount, 0.001));
       expect(baseW.hours, greaterThan(0));
       expect(actingW.hours, greaterThan(0));
     });

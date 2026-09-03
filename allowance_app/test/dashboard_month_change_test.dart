@@ -8,6 +8,19 @@ import 'package:allowance_app/screens/dashboard_screen.dart';
 import 'package:allowance_app/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 
+/// In-memory [DriveService] subclass whose local-backup reads never touch the
+/// file system, so month switching is deterministic under the widget test's
+/// fake async.
+class _FakeDriveService extends DriveService {
+  final Map<String, ClaimData> saved = {};
+
+  @override
+  Future<ClaimData?> loadLocalBackup({String? month}) async => saved[month];
+
+  @override
+  Future<List<String>> listSavedMonths() async => saved.keys.toList();
+}
+
 void main() {
   testWidgets('changing the month asks to start a new claim and clears data',
       (tester) async {
@@ -35,7 +48,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: DriveService(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -46,6 +59,7 @@ void main() {
 
     expect(claim.movements, isNotEmpty);
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('August').last);
@@ -79,7 +93,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: DriveService(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -88,6 +102,7 @@ void main() {
       ),
     ));
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('August').last);
@@ -99,5 +114,155 @@ void main() {
 
     expect(claim.master.month, '2026-09');
     expect(claim.attShifts, isNotEmpty);
+  });
+
+  testWidgets('changing to a saved month auto-loads the saved claim',
+      (tester) async {
+    final drive = _FakeDriveService();
+    final saved = ClaimData(
+      master: MasterData(
+        month: '2026-08',
+        name: 'SAVED USER',
+        designation: 'DOCK PILOT',
+      ),
+    );
+    saved.movements.addAll([
+      Movement(
+        date: '2026-08-12',
+        start: '10:00',
+        end: '13:00',
+        from: 'JETTY',
+        to: 'ANCHORAGE',
+        allowance: 'Length',
+      ),
+    ]);
+    drive.saved['2026-08'] = saved;
+
+    final claim = ClaimData(
+      master: MasterData(
+        month: '2026-09',
+        name: 'TEST USER',
+        designation: 'BERTHING PILOT',
+      ),
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: DashboardScreen(
+          key: UniqueKey(),
+          claimData: claim,
+          driveService: drive,
+          onDataChanged: () {},
+          themeId: ModernThemeId.modernMarine,
+          onThemeChanged: (_) {},
+          appVersion: '2.0.18',
+        ),
+      ),
+    ));
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('August').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start a new month?'), findsNothing);
+    expect(claim.master.month, '2026-08');
+    expect(claim.master.name, 'SAVED USER');
+    expect(claim.movements, hasLength(1));
+  });
+
+  testWidgets('unsaved edits prompt before switching and Cancel aborts',
+      (tester) async {
+    final claim = ClaimData(
+      master: MasterData(
+        month: '2026-09',
+        name: 'TEST USER',
+        designation: 'BERTHING PILOT',
+      ),
+    );
+    claim.attShifts['2026-09-05'] = 'N';
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: DashboardScreen(
+          key: UniqueKey(),
+          claimData: claim,
+          driveService: _FakeDriveService(),
+          onDataChanged: () {},
+          themeId: ModernThemeId.modernMarine,
+          onThemeChanged: (_) {},
+          appVersion: '2.0.18',
+        ),
+      ),
+    ));
+
+    await tester.pumpAndSettle();
+
+    // Edit an uncommitted master-field change (typing alone is not autosaved).
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+    await tester.pump();
+
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('August').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unsaved changes'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(claim.master.month, '2026-09');
+    expect(claim.attShifts, isNotEmpty);
+    expect(find.text('Start a new month?'), findsNothing);
+  });
+
+  testWidgets('unsaved edits prompt lets the user discard and continue switching',
+      (tester) async {
+    final claim = ClaimData(
+      master: MasterData(
+        month: '2026-09',
+        name: 'TEST USER',
+        designation: 'BERTHING PILOT',
+      ),
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: DashboardScreen(
+          key: UniqueKey(),
+          claimData: claim,
+          driveService: _FakeDriveService(),
+          onDataChanged: () {},
+          themeId: ModernThemeId.modernMarine,
+          onThemeChanged: (_) {},
+          appVersion: '2.0.18',
+        ),
+      ),
+    ));
+
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+    await tester.pump();
+
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('August').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unsaved changes'), findsOneWidget);
+
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+
+    // Continue to the 'Start a new month?' flow for the empty target month.
+    expect(find.text('Start a new month?'), findsOneWidget);
+    await tester.tap(find.text('Start New'));
+    await tester.pumpAndSettle();
+    expect(claim.master.month, '2026-08');
   });
 }

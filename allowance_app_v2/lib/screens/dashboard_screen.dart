@@ -33,6 +33,7 @@ class DashboardScreen extends StatefulWidget {
   final ModernThemeId themeId;
   final ValueChanged<ModernThemeId> onThemeChanged;
   final String appVersion;
+  final LocalStore? localStore;
 
   const DashboardScreen({
     super.key,
@@ -41,6 +42,7 @@ class DashboardScreen extends StatefulWidget {
     required this.themeId,
     required this.onThemeChanged,
     required this.appVersion,
+    this.localStore,
   });
 
   @override
@@ -59,6 +61,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late int _selectedYear;
   late String _designation;
   late DateTime _sunDate;
+
+  late final LocalStore _localStore = widget.localStore ?? LocalStore();
+  Set<String> _savedMonths = {};
+  late String _savedBaselineGlyph;
 
   static const _designationOptions = [
     ('BERTHING PILOT', Icons.directions_boat_outlined),
@@ -92,6 +98,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _basicCtrl = TextEditingController(text: m.basic);
     _adaCtrl = TextEditingController(text: m.ada);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+    _savedBaselineGlyph = _currentEditGlyph();
+    _refreshSavedMonths();
+  }
+
+  Future<void> _refreshSavedMonths() async {
+    try {
+      final list = await _localStore.listSavedMonths();
+      if (!mounted) return;
+      setState(() => _savedMonths = list.toSet());
+    } catch (_) {
+      // Storage may be unavailable (e.g. in widget tests); just skip markers.
+    }
   }
 
   Future<void> _checkForUpdate() async {
@@ -131,6 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ada: _adaCtrl.text.trim(),
     );
     widget.onDataChanged();
+    _refreshSavedMonths();
     _showSnack('Master data saved');
   }
 
@@ -151,8 +170,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// A serialization of the claim as it currently appears on screen, including
+  /// any uncommitted master-form edits. Comparing this to the last-persisted
+  /// glyph tells us whether the user has unsaved changes.
+  String _currentEditGlyph() {
+    final data = widget.claimData.toJson();
+    data['master'] = {
+      'month': MasterData.monthKey(_selectedYear, _selectedMonth),
+      'name': _nameCtrl.text.trim().toUpperCase(),
+      'designation': _designation,
+      'employee': _empCtrl.text.trim(),
+      'pay': _payCtrl.text.trim(),
+      'bill': _billCtrl.text.trim(),
+      'basic': _basicCtrl.text.trim(),
+      'ada': _adaCtrl.text.trim(),
+    };
+    return jsonEncode(data);
+  }
+
+  bool get _hasUnsavedChanges =>
+      _currentEditGlyph() != _savedBaselineGlyph;
+
+  /// Result of the unsaved-changes confirmation dialog: true = explicit save,
+  /// false = discard and continue. Returns null if the user cancelled.
+  Future<bool?> _confirmDiscardChanges() async {
+    return showDialog<bool?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved changes'),
+        content: const Text(
+            'There are changes that have not been explicitly saved.\n\n'
+            'Save them to this device, or discard them?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Discard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _saveLocal() {
     _saveMaster();
+    _savedBaselineGlyph = _currentEditGlyph();
     _showSnack('Saved to this device');
   }
 
@@ -284,10 +353,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Prompts the user before changing the claim month. Starting a new month
-  /// clears the current session's movements and confirmed attendance while
-  /// preserving master details and the recurring roster pattern
-  /// (off day + rotation). Other saved months on the device are untouched.
+  /// Handles switching the claim month. If a saved file already exists for the
+  /// selected month, it is loaded and displayed. Otherwise the user is prompted
+  /// to start a fresh claim for the new month.
   Future<void> _changeMonth(int newMonth, int newYear) async {
     final currentMonth = widget.claimData.master.month;
     final parsed = MasterData.parseMonthYear(currentMonth);
@@ -295,10 +363,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final curY = parsed?.$1 ?? _selectedYear;
     if (newMonth == curM && newYear == curY) return;
 
+    // Prompt if the user has uncommitted edits on the current month.
+    if (_hasUnsavedChanges) {
+      final save = await _confirmDiscardChanges();
+      if (!mounted) return;
+      if (save == null) return;
+      if (save) _saveLocal();
+    }
+
     final label = '${MasterData.monthNames[newMonth - 1][0]}'
         '${MasterData.monthNames[newMonth - 1].substring(1).toLowerCase()} '
         '$newYear';
 
+    // If this month was saved before, restore it instead of starting fresh.
+    final saved =
+        await _localStore.load(month: MasterData.monthKey(newYear, newMonth));
+    if (saved != null) {
+      widget.claimData.master = saved.master;
+      _applyMaster(saved.master);
+      widget.claimData.movements
+        ..clear()
+        ..addAll(saved.movements);
+      final sp = MasterData.parseMonthYear(saved.master.month);
+      widget.claimData.attShifts = AllowanceCalculator.pruneFutureShifts(
+          sp == null
+              ? saved.attShifts
+              : AllowanceCalculator.fillRoster(
+                  year: sp.$1,
+                  month: sp.$2,
+                  offDay: saved.attOffDay,
+                  rotation: saved.attRotation,
+                  existing: saved.attShifts));
+      widget.claimData.attManualDates = saved.attManualDates;
+      widget.claimData.attLocked = saved.attLocked;
+      widget.claimData.attOffDay = saved.attOffDay;
+      widget.claimData.attRotation = saved.attRotation;
+      widget.claimData.actingAdmDates.clear();
+      widget.claimData.actingAdmDates.addAll(saved.actingAdmDates);
+      setState(() {
+        _selectedMonth = newMonth;
+        _selectedYear = newYear;
+      });
+      widget.onDataChanged();
+      _showSnack('Loaded $label');
+      _savedBaselineGlyph = _currentEditGlyph();
+      return;
+    }
+
+    if (!mounted) return;
     final start = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -344,6 +456,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     widget.onDataChanged();
     _showSnack('Started new claim for $label');
+    _savedBaselineGlyph = _currentEditGlyph();
   }
 
   @override
@@ -385,6 +498,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _ModernMonthPicker(
                       selectedMonth: _selectedMonth,
                       selectedYear: _selectedYear,
+                      savedMonths: _savedMonths,
                       onMonthChanged: (v) => _changeMonth(v, _selectedYear),
                       onYearChanged: (v) => _changeMonth(_selectedMonth, v),
                     ),
@@ -754,10 +868,12 @@ class _ModernMonthPicker extends StatelessWidget {
   final int selectedYear;
   final ValueChanged<int> onMonthChanged;
   final ValueChanged<int> onYearChanged;
+  final Set<String> savedMonths;
 
   const _ModernMonthPicker({
     required this.selectedMonth,
     required this.selectedYear,
+    required this.savedMonths,
     required this.onMonthChanged,
     required this.onYearChanged,
   });
@@ -778,13 +894,29 @@ class _ModernMonthPicker extends StatelessWidget {
             initialValue: selectedMonth,
             items: List.generate(
               12,
-              (i) => DropdownMenuItem(
-                value: i + 1,
-                child: Text(
-                  MasterData.monthNames[i][0] +
-                      MasterData.monthNames[i].substring(1).toLowerCase(),
-                ),
-              ),
+              (i) {
+                final key = MasterData.monthKey(selectedYear, i + 1);
+                final saved = savedMonths.contains(key);
+                return DropdownMenuItem(
+                  value: i + 1,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (saved) ...[
+                        const Icon(Icons.check_circle,
+                            size: 14, color: Colors.green),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        MasterData.monthNames[i][0] +
+                            MasterData.monthNames[i]
+                                .substring(1)
+                                .toLowerCase(),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             onChanged: (v) => onMonthChanged(v!),
             decoration: const InputDecoration(

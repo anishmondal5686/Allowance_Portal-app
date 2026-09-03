@@ -716,10 +716,11 @@ class AllowanceCalculator {
     final hasW = hasWeightage(
         movements: movements,
         attShifts: attShifts);
-    // Only the contractual Berthing Pilot gets a pay-based night weightage
-    // amount; regular posts (Dock Pilot, ADM) are credited by time (hours).
-    final timeOnly = !data.master.isBerthingPilot;
-    final payWarning = hasW && pay == 0 && !timeOnly;
+    // Every post earns a pay-based night weightage amount:
+    //  - Berthing Pilot (contractual): (hours / 1440) * Consolidated Pay
+    //  - Dock Pilot / ADM / acting-ADM: (hours / 1440) * (Basic Pay + ADA)
+    // (`pay` is already Consolidated Pay for BP and Basic Pay + ADA otherwise.)
+    final payWarning = hasW && pay == 0;
     var nightWeightageHours = 0.0;
     if (hasW) {
       final weightMinutes = calcNightWeightageMinutes(
@@ -728,7 +729,7 @@ class AllowanceCalculator {
           fullNights: data.master.isAdm,
           actingAdmDates: data.actingAdmDates.toSet());
       nightWeightageHours = weightMinutes / 60.0;
-      if (!timeOnly && !payWarning) {
+      if (!payWarning) {
         totals['weightage'] = ((weightMinutes / 60.0) / 1440.0) * pay;
       }
     }

@@ -812,15 +812,15 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 78.0, 153.0, 9.5, bold: true));
       w.add(_txt(f, 'DPS No.', 311.2, 153.0, 8.25, bold: true));
       w.add(_txt(f, m.employee, 365.0, 153.0, 9.5, bold: true));
-      if (m.isAdm) {
+      if (m.isBerthingPilot) {
+        w.add(_txt(
+            f, 'Consolidated Pay \u2013 Rs.', 22.7, 174.0, 8.25, bold: true));
+        w.add(_txt(f, '${m.pay}/-', 140.0, 174.0, 9.5, bold: true));
+      } else {
         w.add(_txt(f, 'Basic \u2013 Rs.', 22.7, 174.0, 8.25, bold: true));
         w.add(_txt(f, '${m.basic}/-', 90.0, 174.0, 9.5, bold: true));
         w.add(_txt(f, 'ADA \u2013 Rs.', 311.2, 174.0, 8.25, bold: true));
         w.add(_txt(f, '${m.ada}/-', 385.0, 174.0, 9.5, bold: true));
-      } else {
-        w.add(_txt(
-            f, 'Consolidated Pay \u2013 Rs.', 22.7, 174.0, 8.25, bold: true));
-        w.add(_txt(f, '${m.pay}/-', 140.0, 174.0, 9.5, bold: true));
       }
       const nwTitle = 'NIGHT WEIGHTAGE ALLOWANCE ( CODE \u2013 023 )';
       w.add(_txt(
@@ -1548,6 +1548,16 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 103.5, 172, 11.5, bold: true));
       w.add(_txt(f, 'DPS/Employee No.:', 311.2, 172, 9.0, bold: true));
       w.add(_txt(f, m.employee, 401.2, 172, 11.5, bold: true));
+      if (m.isBerthingPilot) {
+        w.add(
+            _txt(f, 'Consolidated Pay \u2013 Rs.', 39.8, 194, 9.0, bold: true));
+        w.add(_txt(f, '${m.pay}/-', 137.0, 194, 11.5, bold: true));
+      } else {
+        w.add(_txt(f, 'Basic \u2013 Rs.', 39.8, 194, 9.0, bold: true));
+        w.add(_txt(f, '${m.basic}/-', 103.5, 194, 11.5, bold: true));
+        w.add(_txt(f, 'ADA \u2013 Rs.', 311.2, 194, 9.0, bold: true));
+        w.add(_txt(f, '${m.ada}/-', 401.2, 194, 11.5, bold: true));
+      }
       w.add(_txt(
           f, '(A)  OUTWARD MOVEMENT ALLOWANCE (CODE- 097)', 39.8, 216, 9.0,
           bold: true));

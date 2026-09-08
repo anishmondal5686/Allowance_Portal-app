@@ -320,5 +320,48 @@ void main() {
       f.writeAsBytesSync(bytes);
       expect(f.lengthSync(), greaterThan(500));
     }
+
+    final actingDp = ClaimData(
+      master: MasterData(
+        month: 'JULY, 2026',
+        name: 'A Dock Pilot Acting',
+        designation: 'Dock Pilot',
+        employee: 'EMP 654',
+        bill: 'BILL 5',
+        basic: '89000',
+        ada: '43000',
+      ),
+      attShifts: {
+        '2026-07-11': 'N',
+        '2026-07-12': 'N',
+        '2026-07-13': 'N',
+        '2026-07-14': 'N',
+      },
+      actingAdmDates: ['2026-07-12', '2026-07-13'],
+    );
+    actingDp.movements.add(Movement(
+        date: '12/07/26',
+        vessel: 'MV DP ACT OUT',
+        from: 'LOCK',
+        to: 'OFF',
+        start: '22:30',
+        end: '23:45',
+        loa: '229',
+        beam: '32.26',
+        allowances: ['navigation'],
+        navigationTypes: ['outward-210']));
+    for (final form in [
+      OfficialForm.nightActWeightageAdmDuty,
+      OfficialForm.nightNavigationAdmDuty,
+    ]) {
+      final bytes = await OfficialFormsService.buildFormPdf(form, actingDp);
+      final name = switch (form) {
+        OfficialForm.nightActWeightageAdmDuty => 'actingDp_adm_night.pdf',
+        _ => 'actingDp_adm_nav.pdf',
+      };
+      final f = File('${dir.path}\\$name');
+      f.writeAsBytesSync(bytes);
+      expect(f.lengthSync(), greaterThan(500));
+    }
   });
 }

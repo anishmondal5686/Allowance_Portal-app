@@ -312,5 +312,42 @@ void main() {
       expect(own.length, greaterThan(500));
       expect(admDuty.length, greaterThan(500));
     });
+
+    ClaimData actingBpData() {
+      final data = ClaimData(
+        master: MasterData(
+            month: 'JULY, 2026',
+            designation: 'Berthing Pilot',
+            pay: '100000'),
+        attShifts: {'2026-07-11': 'N', '2026-07-12': 'N', '2026-07-13': 'N'},
+        attLocked: true,
+        actingAdmDates: ['2026-07-12'],
+      );
+      data.movements.add(Movement(
+          date: '12/07/26',
+          vessel: 'MV ADM NAV',
+          from: 'LOCK',
+          to: 'OFF',
+          start: '22:30',
+          end: '23:45',
+          loa: '229',
+          beam: '32',
+          allowances: ['navigation'],
+          navigationTypes: ['outward-210']));
+      return data;
+    }
+
+    test('berthing pilot acting as ADM builds the ADM-duty nav & weightage forms',
+        () async {
+      final data = actingBpData();
+      final nav = await OfficialFormsService.buildFormPdf(
+          OfficialForm.nightNavigationAdmDuty, data);
+      final weight = await OfficialFormsService.buildFormPdf(
+          OfficialForm.nightActWeightageAdmDuty, data);
+      expect(String.fromCharCodes(nav.take(5)), '%PDF-');
+      expect(String.fromCharCodes(weight.take(5)), '%PDF-');
+      expect(nav.length, greaterThan(500));
+      expect(weight.length, greaterThan(500));
+    });
   });
 }

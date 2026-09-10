@@ -31,6 +31,13 @@ App-specific services stay local:
 Run builds sequentially (Gradle daemons collide if run in parallel):
 - `& "C:\flutter\bin\flutter.bat" build apk --release --split-per-abi`
 
+## Release Rules (CRITICAL: in-app updater depends on asset names)
+- `UpdateService.selectAssetsForVariant` matches assets by name:
+  - v1 APK must start `allowance_app_v1_` (e.g. `allowance_app_v1_2.0.25-arm64-v8a_RELEASE.apk`)
+  - v2 APK must start `allowance_app_v2_` (e.g. `allowance_app_v2_2.0.25-arm64-v8a_RELEASE.apk`)
+  - v1 names must NEVER contain the substring `v2` (old installed apps filter by `contains('v1')`/`contains('v2')`)
+- Never use a v1 asset name like `allowance_app_v2.0.XX-apk` — it contains `v2` and lacks `v1`, breaking in-app update for both apps.
+
 ## Verify
 Run analyze + tests across all 3 packages:
 - `shared`: `& "C:\flutter\bin\flutter.bat" analyze`

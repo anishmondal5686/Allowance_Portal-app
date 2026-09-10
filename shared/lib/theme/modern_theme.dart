@@ -8,6 +8,7 @@ enum ModernThemeId {
     Icons.dashboard_outlined,
     Color(0xFF1565C0),
     Brightness.light,
+    FlexScheme.blue,
   ),
   modernTeal(
     'modernTeal',
@@ -15,6 +16,7 @@ enum ModernThemeId {
     Icons.waves_outlined,
     Color(0xFF00897B),
     Brightness.light,
+    FlexScheme.tealM3,
   ),
   modernAmber(
     'modernAmber',
@@ -22,6 +24,7 @@ enum ModernThemeId {
     Icons.sunny,
     Color(0xFFFF8F00),
     Brightness.light,
+    FlexScheme.amber,
   ),
   modernIndigo(
     'modernIndigo',
@@ -29,6 +32,7 @@ enum ModernThemeId {
     Icons.nightlight_round_outlined,
     Color(0xFF3F51B5),
     Brightness.dark,
+    FlexScheme.indigo,
   ),
   modernSlate(
     'modernSlate',
@@ -36,14 +40,17 @@ enum ModernThemeId {
     Icons.dark_mode_outlined,
     Color(0xFF455A64),
     Brightness.dark,
+    FlexScheme.greyLaw,
   );
 
-  const ModernThemeId(this.id, this.label, this.icon, this.seed, this.brightness);
+  const ModernThemeId(this.id, this.label, this.icon, this.seed,
+      this.brightness, this.flexScheme);
   final String id;
   final String label;
   final IconData icon;
   final Color seed;
   final Brightness brightness;
+  final FlexScheme flexScheme;
 
   static ModernThemeId fromId(String? id) {
     if (id == null) return ModernThemeId.modernMarine;
@@ -60,11 +67,11 @@ extension ModernThemeData on ThemeData {
 
     final flexTheme = isDark
         ? FlexThemeData.dark(
-            scheme: FlexScheme.brandBlue,
+            scheme: id.flexScheme,
             fontFamily: 'Noto Sans Devanagari',
           )
         : FlexThemeData.light(
-            scheme: FlexScheme.brandBlue,
+            scheme: id.flexScheme,
             fontFamily: 'Noto Sans Devanagari',
           );
 

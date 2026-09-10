@@ -50,19 +50,8 @@ class UpdateService {
       final body = (json['body'] as String?) ?? '';
       final htmlUrl = (json['html_url'] as String?) ?? '';
 
-      final assets = <UpdateAsset>[];
       final assetsList = json['assets'] as List<dynamic>? ?? [];
-      for (final a in assetsList) {
-        final name = (a['name'] as String?) ?? '';
-        if (!name.endsWith('.apk')) continue;
-        if (appVariant == 'v1' && !name.contains('v1')) continue;
-        if (appVariant == 'v2' && !name.contains('v2')) continue;
-        assets.add(UpdateAsset(
-          name: name,
-          downloadUrl: (a['browser_download_url'] as String?) ?? '',
-          sizeBytes: (a['size'] as int?) ?? 0,
-        ));
-      }
+      final assets = selectAssetsForVariant(assetsList, appVariant: appVariant);
 
       return UpdateInfo(
         latestVersion: tagName,
@@ -73,6 +62,32 @@ class UpdateService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Filters a GitHub release `assets` JSON list to the APKs for [appVariant].
+  /// v1 assets are named `allowance_app_...` (excluding the `allowance_app_v2_`
+  /// prefix), v2 assets are named `allowance_app_v2_...`.
+  static List<UpdateAsset> selectAssetsForVariant(
+    List<dynamic> jsonAssets, {
+    String? appVariant,
+  }) {
+    final assets = <UpdateAsset>[];
+    for (final a in jsonAssets) {
+      final map = (a as Map?) ?? const {};
+      final name = (map['name'] as String?) ?? '';
+      if (!name.endsWith('.apk')) continue;
+      final isV1 = name.startsWith('allowance_app_') &&
+          !name.startsWith('allowance_app_v2_');
+      final isV2 = name.startsWith('allowance_app_v2_');
+      if (appVariant == 'v1' && !isV1) continue;
+      if (appVariant == 'v2' && !isV2) continue;
+      assets.add(UpdateAsset(
+        name: name,
+        downloadUrl: (map['browser_download_url'] as String?) ?? '',
+        sizeBytes: (map['size'] as int?) ?? 0,
+      ));
+    }
+    return assets;
   }
 
   /// Downloads an APK to the app cache directory.

@@ -1412,7 +1412,10 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     });
 
     try {
-      final asset = widget.info.assets.first;
+      final asset = widget.info.assets.firstOrNull;
+      if (asset == null || asset.downloadUrl.isEmpty) {
+        throw Exception('No matching APK found for this app');
+      }
       final path = await UpdateService.downloadApk(
         asset,
         onProgress: (p) {

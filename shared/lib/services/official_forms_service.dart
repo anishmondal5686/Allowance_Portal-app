@@ -835,27 +835,27 @@ class OfficialFormsService {
       w.add(_cell(f, 'Certified that the statement is correct', [390.0, 572.7],
           759.1, 7.88,
           bold: true));
-      w.add(_cell(f, 'Manager', [22.7, 200.0], 806.4, 7.88, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 816.5, 7.88,
+      w.add(_cell(f, 'Manager', [22.7, 200.0], 786.4, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 796.5, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 826.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 806.6, 7.88,
           bold: true));
-      w.add(_cell(f, 'Deputy Dock Master,', [200.0, 325.0], 806.4, 7.88,
+      w.add(_cell(f, 'Deputy Dock Master,', [200.0, 325.0], 786.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [200.0, 325.0], 816.5, 7.88,
+      w.add(_cell(f, 'Marine Ops. Division', [200.0, 325.0], 796.5, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 325.0], 826.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 325.0], 806.6, 7.88,
           bold: true));
-      w.add(_cell(f, 'Asst. Dock Master', [325.0, 450.0], 806.4, 7.88,
+      w.add(_cell(f, 'Asst. Dock Master', [325.0, 450.0], 786.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [325.0, 450.0], 816.5, 7.88,
+      w.add(_cell(f, 'Marine Ops. Division', [325.0, 450.0], 796.5, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [325.0, 450.0], 826.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [325.0, 450.0], 806.6, 7.88,
           bold: true));
       final sigLine1 = _signatureLabel(data.master.isAdm);
       final sigLine2 = _signatureRole(data.master);
-      w.add(_cell(f, sigLine1, [450.0, 572.7], 806.4, 7.88, bold: true));
-      w.add(_cell(f, sigLine2, [450.0, 572.7], 816.5, 7.88, bold: true));
+      w.add(_cell(f, sigLine1, [450.0, 572.7], 786.4, 7.88, bold: true));
+      w.add(_cell(f, sigLine2, [450.0, 572.7], 796.5, 7.88, bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,
@@ -984,18 +984,18 @@ class OfficialFormsService {
       w.add(_cell(f, 'Certified that the statement is correct', [390.0, 572.7],
           724.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Manager', [22.7, 200.0], 795.0, 8.25, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 809.0, 8.25,
+      w.add(_cell(f, 'Manager', [22.7, 200.0], 780.0, 8.25, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 794.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 823.0, 8.25,
+      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 808.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Deputy Dock Master', [200.0, 390.0], 795.0, 8.25,
+      w.add(_cell(f, 'Deputy Dock Master', [200.0, 390.0], 780.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 809.0, 8.25,
+      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 794.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Signature of ADM', [390.0, 572.7], 795.0, 8.25,
+      w.add(_cell(f, 'Signature of ADM', [390.0, 572.7], 780.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Asst. Dock Master', [390.0, 572.7], 809.0, 8.25,
+      w.add(_cell(f, 'Asst. Dock Master', [390.0, 572.7], 794.0, 8.25,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,

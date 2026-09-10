@@ -114,9 +114,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _checkForUpdate() async {
-    final info = await UpdateService.checkForUpdate(widget.appVersion, appVariant: 'v2');
-    if (!mounted || info == null) return;
+  Future<void> _checkForUpdate({bool manual = false}) async {
+    final info = await UpdateService.checkForUpdate(widget.appVersion,
+        appVariant: 'v2');
+    if (!mounted) return;
+    if (info == null) {
+      if (manual) _showSnack('You are up to date (v${widget.appVersion})');
+      return;
+    }
     _showUpdateDialog(info);
   }
 
@@ -474,6 +479,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Allowance Portal'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.update),
+            tooltip: 'Check for updates',
+            onPressed: () => _checkForUpdate(manual: true),
+          ),
           IconButton(
             icon: const Icon(Icons.save_outlined),
             tooltip: 'Save to this device',

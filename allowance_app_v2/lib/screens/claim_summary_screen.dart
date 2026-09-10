@@ -7,6 +7,7 @@ import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/services/claim_print_service.dart';
 import 'package:allowance_shared/services/official_forms_service.dart';
 import 'official_forms_screen.dart';
+import 'pdf_preview_screen.dart';
 
 class ClaimSummaryScreen extends StatefulWidget {
   final ClaimData claimData;
@@ -52,6 +53,22 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
     }
   }
 
+  void _preview() {
+    final monthLabel = widget.claimData.master.month.isEmpty
+        ? '—'
+        : MasterData.displayMonth(widget.claimData.master.month);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PdfPreviewScreen(
+          title: 'Claim Summary · $monthLabel',
+          pdfFuture: ClaimPrintService.buildPdf(widget.claimData),
+          pdfName: ClaimPrintService.pdfFileName(widget.claimData.master.month),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = AllowanceCalculator.computeSummary(widget.claimData);
@@ -63,6 +80,11 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
       appBar: AppBar(
         title: const Text('Claim Summary'),
         actions: [
+          IconButton(
+            tooltip: 'Preview',
+            onPressed: _printing ? null : _preview,
+            icon: const Icon(Icons.visibility_outlined),
+          ),
           IconButton(
             tooltip: 'Print / PDF',
             onPressed: _printing ? null : _print,
@@ -199,18 +221,30 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _printing ? null : _print,
-                icon: _printing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.print),
-                label: const Text('Print / PDF'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _printing ? null : _preview,
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text('Preview'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: _printing ? null : _print,
+                    icon: _printing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.print),
+                    label: const Text('Print / PDF'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Card(

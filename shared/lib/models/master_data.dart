@@ -3,6 +3,7 @@ class MasterData {
   String name;
   String designation;
   String employee;
+  String sapEmployeeId;
   String pay;
   String bill;
   String basic;
@@ -13,6 +14,7 @@ class MasterData {
     this.name = '',
     this.designation = '',
     this.employee = '',
+    this.sapEmployeeId = '',
     this.pay = '',
     this.bill = '',
     this.basic = '',
@@ -45,6 +47,7 @@ class MasterData {
         'name': name,
         'designation': designation,
         'employee': employee,
+        'sapEmployeeId': sapEmployeeId,
         'pay': pay,
         'bill': bill,
         'basic': basic,
@@ -56,6 +59,7 @@ class MasterData {
         name: json['name'] as String? ?? '',
         designation: json['designation'] as String? ?? '',
         employee: json['employee'] as String? ?? '',
+        sapEmployeeId: json['sapEmployeeId'] as String? ?? '',
         pay: json['pay'] as String? ?? '',
         bill: json['bill'] as String? ?? '',
         basic: json['basic'] as String? ?? '',
@@ -67,6 +71,7 @@ class MasterData {
         name: name,
         designation: designation,
         employee: employee,
+        sapEmployeeId: sapEmployeeId,
         pay: pay,
         bill: bill,
         basic: basic,

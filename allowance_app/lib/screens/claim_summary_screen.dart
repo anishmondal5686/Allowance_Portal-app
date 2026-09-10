@@ -128,8 +128,8 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
                             Text(
                                 line.key == 'weightage' &&
                                         summary.nightWeightageHours > 0
-                                    ? '${_fmt.format(line.amount)} · '
-                                        '${summary.nightWeightageHours.toStringAsFixed(2)} hrs'
+                                    ? '${_fmt.format(line.amount)} '
+                                        '(for ${summary.nightWeightageHours.toStringAsFixed(2)} hrs)'
                                     : _fmt.format(line.amount),
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),

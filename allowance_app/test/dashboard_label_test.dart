@@ -29,13 +29,16 @@ void main() {
     await pump('DOCK PILOT');
     expect(find.text('DPS No.'), findsOneWidget);
     expect(find.text('Employee ID'), findsNothing);
+    expect(find.text('SAP Employee ID'), findsOneWidget);
 
     await pump('ADM');
     expect(find.text('DPS No.'), findsOneWidget);
     expect(find.text('Employee ID'), findsNothing);
+    expect(find.text('SAP Employee ID'), findsOneWidget);
 
     await pump('BERTHING PILOT');
     expect(find.text('Employee ID'), findsOneWidget);
     expect(find.text('DPS No.'), findsNothing);
+    expect(find.text('SAP Employee ID'), findsOneWidget);
   });
 }

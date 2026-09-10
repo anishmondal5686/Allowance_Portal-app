@@ -1,3 +1,4 @@
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 enum ModernThemeId {
@@ -55,14 +56,21 @@ enum ModernThemeId {
 
 extension ModernThemeData on ThemeData {
   static ThemeData buildModern(ModernThemeId id) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: id.seed,
-      brightness: id.brightness,
-    );
+    final isDark = id.brightness == Brightness.dark;
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
+    final flexTheme = isDark
+        ? FlexThemeData.dark(
+            scheme: FlexScheme.brandBlue,
+            fontFamily: 'Noto Sans Devanagari',
+          )
+        : FlexThemeData.light(
+            scheme: FlexScheme.brandBlue,
+            fontFamily: 'Noto Sans Devanagari',
+          );
+
+    final scheme = flexTheme.colorScheme;
+
+    return flexTheme.copyWith(
       scaffoldBackgroundColor: scheme.surfaceContainerLowest,
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,

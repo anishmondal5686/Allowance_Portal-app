@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +33,7 @@ void main() {
           name: 'A Pilot',
           designation: 'Berthing Pilot',
           employee: 'EMP 123',
+          sapEmployeeId: '50007941',
           pay: '100000',
           bill: 'BILL 1',
         ),
@@ -52,6 +54,49 @@ void main() {
       expect(bytes, isA<Uint8List>());
       expect(bytes.length, greaterThan(500));
       expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    });
+
+    test('dump calc sheet to disk for PDF verification', () async {
+      final dir = Directory(
+          r'C:\Users\way2m\AppData\Local\Temp\opencode\gen');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final data = ClaimData(
+        master: MasterData(
+          month: 'JULY, 2026',
+          name: 'A Pilot',
+          designation: 'Berthing Pilot',
+          employee: 'EMP 123',
+          sapEmployeeId: '50007941',
+          pay: '100000',
+          bill: 'BILL 1',
+        ),
+        attShifts: {'2026-07-11': 'N'},
+      );
+      for (var i = 1; i <= 3; i++) {
+        data.movements.add(Movement(
+            date: '1$i/07/26',
+            vessel: 'MV ROW $i',
+            from: 'OFF',
+            to: 'B2',
+            start: '22:00',
+            end: '23:30',
+            loa: '180',
+            beam: '32',
+            allowance: 'nightact'));
+      }
+      data.movements.add(Movement(
+          date: '11/07/26',
+          vessel: 'MV TEST',
+          from: 'B1',
+          to: 'B2',
+          start: '23:00',
+          end: '01:00',
+          loa: '180',
+          beam: '32',
+          allowance: 'length'));
+      final f = File('${dir.path}\\calc_sheet.pdf');
+      f.writeAsBytesSync(await ClaimPrintService.buildPdf(data));
+      expect(f.lengthSync(), greaterThan(500));
     });
 
     test('builds an empty PDF when there are no movements', () async {

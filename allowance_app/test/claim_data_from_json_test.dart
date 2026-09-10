@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
 
 void main() {
   group('ClaimData.fromJson legacy movement merge', () {
@@ -164,6 +165,28 @@ void main() {
 
       expect(data.movements.length, 2);
       expect(data.movements.first.allowances, ['length']);
+    });
+  });
+
+  group('MasterData.sapEmployeeId', () {
+    test('round-trips through toJson/fromJson', () {
+      final m = MasterData.fromJson({
+        'month': 'MAY, 2026',
+        'name': 'ANISH MONDAL',
+        'designation': 'BERTHING PILOT',
+        'employee': '20281',
+        'sapEmployeeId': '50007941',
+        'pay': '83000',
+        'bill': '9090',
+      });
+      expect(m.sapEmployeeId, '50007941');
+      expect(MasterData.fromJson(m.toJson()).sapEmployeeId, '50007941');
+      expect(m.copy().sapEmployeeId, '50007941');
+    });
+
+    test('defaults to empty when absent from JSON', () {
+      final m = MasterData.fromJson({'month': ''});
+      expect(m.sapEmployeeId, '');
     });
   });
 }

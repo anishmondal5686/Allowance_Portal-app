@@ -109,10 +109,10 @@ class ClaimPrintService {
         pw.SizedBox(height: 10),
         pw.Table(
           columnWidths: const {
-            0: pw.FlexColumnWidth(30),
-            1: pw.FlexColumnWidth(50),
-            2: pw.FlexColumnWidth(30),
-            3: pw.FlexColumnWidth(50),
+            0: pw.FlexColumnWidth(32),
+            1: pw.FlexColumnWidth(48),
+            2: pw.FlexColumnWidth(32),
+            3: pw.FlexColumnWidth(48),
           },
           border: pw.TableBorder.all(color: PdfColors.black, width: 1),
           children: [
@@ -120,6 +120,7 @@ class ClaimPrintService {
                 _monthLabel(data.master.month)),
             _kvRow2('DESIGNATION', _d(m.designation), 'PAY', payValue),
             _kvRow2('EMPLOYEE NO', _d(m.employee), 'ADA', secondRight),
+            _kvRow2('SAP EMPLOYEE ID', _d(m.sapEmployeeId), '', ''),
           ],
         ),
         pw.SizedBox(height: 10),
@@ -247,6 +248,14 @@ class ClaimPrintService {
     );
   }
 
+  static const _sapByKey = {
+    'Length': '5245',
+    'Night Navigation': '5290',
+    'Night Act': '5250',
+    'Lock': '5215',
+    'Cold': '5230',
+  };
+
   static pw.Widget _allowanceBreakdown(CalcSheet sheet) {
     final List<pw.Widget> parts = [];
     final Map<String, double> totals = {};
@@ -283,7 +292,9 @@ class ClaimPrintService {
     void add(String label, String value) {
       if (!first) sep();
       first = false;
-      parts.add(pw.Text('$label $value',
+      final sap = _sapByKey[label];
+      final tag = sap == null ? label : '$label (SAP code $sap)';
+      parts.add(pw.Text('$tag - $value',
           style: const pw.TextStyle(fontSize: 9)));
     }
 
@@ -294,13 +305,20 @@ class ClaimPrintService {
 
     final weightageHours = sheet.baseWeightageHours + sheet.actingWeightageHours;
     if (sheet.weightageAmount != 0 || weightageHours != 0) {
-      add('Night Weightage',
-          sheet.weightageAmount != 0
-              ? _money.format(sheet.weightageAmount)
-              : '${weightageHours.toStringAsFixed(2)} HRS');
+      final hr = weightageHours.toStringAsFixed(2);
+      final value = sheet.weightageAmount != 0
+          ? '${_money.format(sheet.weightageAmount)}'
+              '${weightageHours != 0 ? ' (for $hr hrs)' : ''}'
+          : '$hr HRS';
+      if (!first) sep();
+      first = false;
+      parts.add(pw.Text('Night Weightage (SAP code 5H01) - $value',
+          style: const pw.TextStyle(fontSize: 9)));
     }
 
-    return pw.Row(
+    return pw.Wrap(
+      spacing: 0,
+      runSpacing: 2,
       children: [
         pw.Text('SUMMARY: ',
             style: pw.TextStyle(

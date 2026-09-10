@@ -45,3 +45,15 @@ Use the project `/verify` command.
 - Spec doc: `C:\New folder\ADM ALLOWANCE NEW FORM.docx`.
 - Session notes: `C:\Users\way2m\AppData\Local\Temp\opencode\SESSION_SUMMARY.md` — update with completed work.
 - Git: root repo tracks all 3 packages (`shared`, `allowance_app`, `allowance_app_v2`). Always run tests before committing.
+
+## Document & Binary Handling (.docx, .pdf)
+- Spec reference document: `C:\New folder\ADM ALLOWANCE NEW FORM.docx`.
+- Never attempt to read raw `.docx` or `.pdf` files directly as binary.
+- When referencing or reading the allowance specification document or any PDF:
+  1. Use the `markitdown` MCP tool (or execute `python -W ignore -m markitdown "<path>"` via shell) to convert it to clean Markdown.
+  2. Parse the extracted Markdown text to inspect allowance rates, rules, or form layouts.
+
+## Architecture Guardrails
+- **Shared First:** Any change to allowance calculations, movement models, official form generation, print services, or themes MUST be made in `shared/lib/` only. Never duplicate shared services into app-specific folders.
+- **UI Parity:** Any change made to a screen in `allowance_app/lib/screens/` must be mirrored in `allowance_app_v2/lib/screens/` unless it specifically involves Google Drive sync or local-only persistence.
+- **Sequential Builds:** Never trigger concurrent Gradle builds. Always build one package at a time.

@@ -53,6 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _empCtrl;
+  late TextEditingController _sapCtrl;
   late TextEditingController _payCtrl;
   late TextEditingController _billCtrl;
   late TextEditingController _basicCtrl;
@@ -93,6 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _nameCtrl = TextEditingController(text: m.name);
     _designation = _normalizeDesignation(m.designation);
     _empCtrl = TextEditingController(text: m.employee);
+    _sapCtrl = TextEditingController(text: m.sapEmployeeId);
     _payCtrl = TextEditingController(text: m.pay);
     _billCtrl = TextEditingController(text: m.bill);
     _basicCtrl = TextEditingController(text: m.basic);
@@ -130,6 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _empCtrl.dispose();
+    _sapCtrl.dispose();
     _payCtrl.dispose();
     _billCtrl.dispose();
     _basicCtrl.dispose();
@@ -143,6 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       name: _nameCtrl.text.trim().toUpperCase(),
       designation: _designation,
       employee: _empCtrl.text.trim(),
+      sapEmployeeId: _sapCtrl.text.trim(),
       pay: _payCtrl.text.trim(),
       bill: _billCtrl.text.trim(),
       basic: _basicCtrl.text.trim(),
@@ -160,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _nameCtrl.text = m.name;
     _designation = _normalizeDesignation(m.designation);
     _empCtrl.text = m.employee;
+    _sapCtrl.text = m.sapEmployeeId;
     _payCtrl.text = m.pay;
     _billCtrl.text = m.bill;
     _basicCtrl.text = m.basic;
@@ -180,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'name': _nameCtrl.text.trim().toUpperCase(),
       'designation': _designation,
       'employee': _empCtrl.text.trim(),
+      'sapEmployeeId': _sapCtrl.text.trim(),
       'pay': _payCtrl.text.trim(),
       'bill': _billCtrl.text.trim(),
       'basic': _basicCtrl.text.trim(),
@@ -444,6 +450,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         name: _nameCtrl.text.trim().toUpperCase(),
         designation: _designation,
         employee: _empCtrl.text.trim(),
+        sapEmployeeId: _sapCtrl.text.trim(),
         pay: _payCtrl.text.trim(),
         bill: _billCtrl.text.trim(),
         basic: _basicCtrl.text.trim(),
@@ -573,6 +580,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       prefixIcon: Icons.credit_card_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
+                    const SizedBox(height: 12),
+                    _ModernTextField(
+                      controller: _sapCtrl,
+                      label: 'SAP Employee ID',
+                      prefixIcon: Icons.badge_outlined,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
                     ),
                     const SizedBox(height: 12),
                     _ModernTextField(

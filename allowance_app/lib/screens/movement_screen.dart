@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 
 import 'package:allowance_shared/models/claim_data.dart';
@@ -12,7 +13,9 @@ class _UpperCaseTextFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
@@ -22,7 +25,9 @@ class _TimeTextFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     final clamped = digits.length > 4 ? digits.substring(0, 4) : digits;
     return TextEditingValue(
@@ -37,11 +42,14 @@ class _DecimalTextFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     var text = newValue.text.replaceAll(RegExp(r'[^0-9.]'), '');
     final firstDot = text.indexOf('.');
     if (firstDot >= 0) {
-      text = text.substring(0, firstDot + 1) +
+      text =
+          text.substring(0, firstDot + 1) +
           text.substring(firstDot + 1).replaceAll('.', '');
     }
     return newValue.copyWith(text: text);
@@ -63,19 +71,19 @@ class MovementScreen extends StatefulWidget {
 }
 
 class _MovementScreenState extends State<MovementScreen> {
-  final _fmt =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  final _fmt = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final movements =
-        AllowanceCalculator.movementsForMonth(widget.claimData);
+    final movements = AllowanceCalculator.movementsForMonth(widget.claimData);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Movement Register'),
-      ),
+      appBar: AppBar(title: const Text('Movement Register')),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Add Movement',
         onPressed: () => _editMovement(context),
@@ -94,21 +102,27 @@ class _MovementScreenState extends State<MovementScreen> {
               itemBuilder: (context, index) {
                 final m = movements[index];
                 final amount = m.allowances.fold<double>(
-                    0,
-                    (sum, a) =>
-                        sum +
-                        AllowanceCalculator.amountFor(
-                            allowance: a,
-                            movement: m,
-                            adm: widget.claimData.master.isAdm ||
-                                widget.claimData.isActingAdmOn(m.date)));
+                  0,
+                  (sum, a) =>
+                      sum +
+                      AllowanceCalculator.amountFor(
+                        allowance: a,
+                        movement: m,
+                        adm:
+                            widget.claimData.master.isAdm ||
+                            widget.claimData.isActingAdmOn(m.date),
+                      ),
+                );
                 return _MovementCard(
                   movement: m,
                   amount: amount,
                   amountText: _fmt.format(amount),
-                  allowanceLabel: _allowanceLabel(m.allowances,
-                      adm: widget.claimData.master.isAdm ||
-                          widget.claimData.isActingAdmOn(m.date)),
+                  allowanceLabel: _allowanceLabel(
+                    m.allowances,
+                    adm:
+                        widget.claimData.master.isAdm ||
+                        widget.claimData.isActingAdmOn(m.date),
+                  ),
                   navLabel: _navLabel(m.navigationTypes),
                   scheme: scheme,
                   onEdit: () => _editMovement(context, existing: m),
@@ -161,8 +175,9 @@ class _MovementScreenState extends State<MovementScreen> {
         content: Text('Delete ${m.vessel} on ${m.date}?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: scheme.error),
             onPressed: () {
@@ -186,8 +201,11 @@ class _MovementScreenState extends State<MovementScreen> {
     final year = parsed?.$1 ?? now.year;
     final month = parsed?.$2 ?? now.month;
 
-    final result = await showDialog<Movement>(
+    final result = await showModalBottomSheet<Movement>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => _MovementFormDialog(
         existing: current,
         title: isNew ? 'Add Movement' : 'Edit Movement',
@@ -236,9 +254,9 @@ class _EmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -272,122 +290,146 @@ class _MovementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasNav = movement.navigationTypes.isNotEmpty;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    movement.date,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    movement.vessel,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.arrow_forward_rounded,
-                    size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Text(
-                  '${movement.from} → ${movement.to}',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.schedule_rounded,
-                    size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Text(
-                  '${movement.start} - ${movement.end}',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-                const SizedBox(width: 16),
-                if (movement.loa.isNotEmpty) ...[
-                  Icon(Icons.straighten_rounded,
-                      size: 16, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Text('${movement.loa} m',
-                      style: TextStyle(color: scheme.onSurfaceVariant)),
-                ],
-              ],
-            ),
-            if (allowanceLabel.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
+    return Slidable(
+      key: ValueKey('${movement.date}|${movement.vessel}|${movement.start}'),
+      endActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        extentRatio: 0.5,
+        children: [
+          SlidableAction(
+            onPressed: (_) => onEdit(),
+            backgroundColor: scheme.secondary,
+            foregroundColor: scheme.onSecondary,
+            icon: Icons.edit_outlined,
+            label: 'Edit',
+            borderRadius: BorderRadius.circular(16),
+          ),
+          SlidableAction(
+            onPressed: (_) => onDelete(),
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+            icon: Icons.delete_outline,
+            label: 'Delete',
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ],
+      ),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _Chip(
-                    text: allowanceLabel,
-                    color: scheme.tertiaryContainer,
-                    textColor: scheme.onTertiaryContainer,
-                  ),
-                  if (hasNav)
-                    _Chip(
-                      text: navLabel,
-                      color: scheme.secondaryContainer,
-                      textColor: scheme.onSecondaryContainer,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      movement.date,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      movement.vessel,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ],
-            const Divider(height: 24),
-            Row(
-              children: [
-                if (amount > 0)
-                  Text(
-                    amountText,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.primary,
-                        ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
                   ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Edit',
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Delete',
-                  onPressed: onDelete,
-                  icon: Icon(Icons.delete_outline, color: scheme.error),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${movement.from} → ${movement.to}',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${movement.start} - ${movement.end}',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 16),
+                  if (movement.loa.isNotEmpty) ...[
+                    Icon(
+                      Icons.straighten_rounded,
+                      size: 16,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${movement.loa} m',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ],
+              ),
+              if (allowanceLabel.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _Chip(
+                      text: allowanceLabel,
+                      color: scheme.tertiaryContainer,
+                      textColor: scheme.onTertiaryContainer,
+                    ),
+                    if (hasNav)
+                      _Chip(
+                        text: navLabel,
+                        color: scheme.secondaryContainer,
+                        textColor: scheme.onSecondaryContainer,
+                      ),
+                  ],
                 ),
               ],
-            ),
-          ],
+              if (amount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    amountText,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -458,8 +500,11 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   final Set<String> _navTypes = {};
   String _detectInfo = '';
   double _computedAmount = 0;
-  final _fmt =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  final _fmt = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
   final _dateFmt = DateFormat('dd/MM/yyyy');
 
   static const _allowanceOptions = [
@@ -479,11 +524,7 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
     'unbanking',
   ];
 
-  static const _admAllowanceOptions = [
-    'length',
-    'lock',
-    'navigation',
-  ];
+  static const _admAllowanceOptions = ['length', 'lock', 'navigation'];
 
   static const _admNavOptions = [
     'outward-180-210',
@@ -495,7 +536,8 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   bool get _isAdm =>
       widget.claimData.master.isAdm ||
       widget.claimData.isActingAdmOn(
-          '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}');
+        '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}',
+      );
 
   List<String> get _allowanceChoices =>
       _isAdm ? _admAllowanceOptions : _allowanceOptions;
@@ -506,8 +548,7 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _selectedDate =
-        _parseExistingDate(e.date) ?? _fallbackDate();
+    _selectedDate = _parseExistingDate(e.date) ?? _fallbackDate();
     _vesselCtrl = TextEditingController(text: e.vessel);
     _fromCtrl = TextEditingController(text: e.from);
     _toCtrl = TextEditingController(text: e.to);
@@ -521,21 +562,20 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   }
 
   Movement _buildMovement() => Movement(
-        date: _dateFmt.format(_selectedDate),
-        vessel: _vesselCtrl.text.trim(),
-        from: _fromCtrl.text.trim(),
-        to: _toCtrl.text.trim(),
-        start: _startCtrl.text.trim(),
-        end: _endCtrl.text.trim(),
-        loa: _loaCtrl.text.trim(),
-        beam: _beamCtrl.text.trim(),
-        allowances: _allowances.toList(),
-        navigationTypes: _navTypes.toList(),
-      );
+    date: _dateFmt.format(_selectedDate),
+    vessel: _vesselCtrl.text.trim(),
+    from: _fromCtrl.text.trim(),
+    to: _toCtrl.text.trim(),
+    start: _startCtrl.text.trim(),
+    end: _endCtrl.text.trim(),
+    loa: _loaCtrl.text.trim(),
+    beam: _beamCtrl.text.trim(),
+    allowances: _allowances.toList(),
+    navigationTypes: _navTypes.toList(),
+  );
 
   void _autoDetect() {
-    final result =
-        AllowanceCalculator.autoDetect(movement: _buildMovement());
+    final result = AllowanceCalculator.autoDetect(movement: _buildMovement());
     setState(() {
       _allowances
         ..clear()
@@ -551,15 +591,21 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   }
 
   void _updateAmount() {
-    final adm = widget.claimData.master.isAdm ||
+    final adm =
+        widget.claimData.master.isAdm ||
         widget.claimData.isActingAdmOn(
-            AllowanceCalculator.movementShiftDate(_buildMovement()));
+          AllowanceCalculator.movementShiftDate(_buildMovement()),
+        );
     _computedAmount = _allowances.fold(
-        0,
-        (sum, a) =>
-            sum +
-            AllowanceCalculator.amountFor(
-                allowance: a, movement: _buildMovement(), adm: adm));
+      0,
+      (sum, a) =>
+          sum +
+          AllowanceCalculator.amountFor(
+            allowance: a,
+            movement: _buildMovement(),
+            adm: adm,
+          ),
+    );
   }
 
   @override
@@ -578,219 +624,301 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(widget.title.contains('Edit') ? Icons.edit_outlined : Icons.add,
-              color: scheme.primary, size: 24),
-          const SizedBox(width: 8),
-          Text(widget.title),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height - viewInsets,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDateField(),
-              _buildField(
-                _vesselCtrl,
-                'Vessel Name',
-                prefixIcon: Icons.directions_boat_outlined,
-                inputFormatters: const [_UpperCaseTextFormatter()],
-                textCapitalization: TextCapitalization.characters,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      _fromCtrl,
-                      'From Berth',
-                      inputFormatters: const [_UpperCaseTextFormatter()],
-                      textCapitalization: TextCapitalization.characters,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildField(
-                      _toCtrl,
-                      'To Berth',
-                      inputFormatters: const [_UpperCaseTextFormatter()],
-                      textCapitalization: TextCapitalization.characters,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      _startCtrl,
-                      'Start (HHMM)',
-                      prefixIcon: Icons.schedule_outlined,
-                      inputFormatters: const [_TimeTextFormatter()],
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildField(
-                      _endCtrl,
-                      'End (HHMM)',
-                      prefixIcon: Icons.timer_outlined,
-                      inputFormatters: const [_TimeTextFormatter()],
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              _buildSunHint(_selectedDate),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      _loaCtrl,
-                      'LOA (m)',
-                      prefixIcon: Icons.straighten_outlined,
-                      inputFormatters: const [_DecimalTextFormatter()],
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildField(
-                      _beamCtrl,
-                      'Beam (m)',
-                      prefixIcon: Icons.width_wide_outlined,
-                      inputFormatters: const [_DecimalTextFormatter()],
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (widget.claimData.master.isBerthingPilot) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _autoDetect,
-                    icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: const Text('Auto-detect allowances'),
-                  ),
+              // Drag handle indicator
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                if (_detectInfo.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      _detectInfo,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant),
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 12),
-              _SectionLabel(
-                icon: Icons.tune_rounded,
-                text: 'Allowances',
-                helper:
-                    'Select the allowances applicable to this movement',
-                scheme: scheme,
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final a in _allowanceChoices)
-                    FilterChip(
-                      label: Text(_chipLabel(a)),
-                      selected: _allowances.contains(a),
-                      onSelected: (sel) => setState(() {
-                        if (sel) {
-                          _allowances.add(a);
-                        } else {
-                          _allowances.remove(a);
-                        }
-                        _updateAmount();
-                      }),
-                    ),
-                ],
-              ),
-              if (_allowances.contains('navigation')) ...[
-                const SizedBox(height: 16),
-                _SectionLabel(
-                  icon: Icons.navigation_outlined,
-                  text: 'Navigation Type',
-                  helper: 'Choose the type of navigation movement',
-                  scheme: scheme,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    for (final n in _navChoices)
-                      FilterChip(
-                        label: Text(_navChipLabel(n)),
-                        selected: _navTypes.contains(n),
-                        onSelected: (sel) => setState(() {
-                          if (sel) {
-                            _navTypes.add(n);
-                          } else {
-                            _navTypes.remove(n);
-                          }
-                          _updateAmount();
-                        }),
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          widget.title.contains('Edit')
+                              ? Icons.edit_outlined
+                              : Icons.add,
+                          color: scheme.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ],
                 ),
-              ],
-              if (_allowances.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.currency_rupee_rounded,
-                          color: scheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      const Text('Amount: ',
-                          style: TextStyle(fontSize: 15)),
-                      Text(_fmt.format(_computedAmount),
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: scheme.primary)),
-                    ],
+              ),
+              const Divider(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDateField(),
+                        _buildField(
+                          _vesselCtrl,
+                          'Vessel Name',
+                          prefixIcon: Icons.directions_boat_outlined,
+                          inputFormatters: const [_UpperCaseTextFormatter()],
+                          textCapitalization: TextCapitalization.characters,
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildField(
+                                _fromCtrl,
+                                'From Berth',
+                                inputFormatters: const [
+                                  _UpperCaseTextFormatter(),
+                                ],
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildField(
+                                _toCtrl,
+                                'To Berth',
+                                inputFormatters: const [
+                                  _UpperCaseTextFormatter(),
+                                ],
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildField(
+                                _startCtrl,
+                                'Start (HHMM)',
+                                prefixIcon: Icons.schedule_outlined,
+                                inputFormatters: const [_TimeTextFormatter()],
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildField(
+                                _endCtrl,
+                                'End (HHMM)',
+                                prefixIcon: Icons.timer_outlined,
+                                inputFormatters: const [_TimeTextFormatter()],
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                        _buildSunHint(_selectedDate),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildField(
+                                _loaCtrl,
+                                'LOA (m)',
+                                prefixIcon: Icons.straighten_outlined,
+                                inputFormatters: const [
+                                  _DecimalTextFormatter(),
+                                ],
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildField(
+                                _beamCtrl,
+                                'Beam (m)',
+                                prefixIcon: Icons.width_wide_outlined,
+                                inputFormatters: const [
+                                  _DecimalTextFormatter(),
+                                ],
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (widget.claimData.master.isBerthingPilot) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _autoDetect,
+                              icon: const Icon(Icons.auto_awesome, size: 18),
+                              label: const Text('Auto-detect allowances'),
+                            ),
+                          ),
+                          if (_detectInfo.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                _detectInfo,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                        const SizedBox(height: 12),
+                        _SectionLabel(
+                          icon: Icons.tune_rounded,
+                          text: 'Allowances',
+                          helper:
+                              'Select the allowances applicable to this movement',
+                          scheme: scheme,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final a in _allowanceChoices)
+                              FilterChip(
+                                label: Text(_chipLabel(a)),
+                                selected: _allowances.contains(a),
+                                onSelected: (sel) => setState(() {
+                                  if (sel) {
+                                    _allowances.add(a);
+                                  } else {
+                                    _allowances.remove(a);
+                                  }
+                                  _updateAmount();
+                                }),
+                              ),
+                          ],
+                        ),
+                        if (_allowances.contains('navigation')) ...[
+                          const SizedBox(height: 16),
+                          _SectionLabel(
+                            icon: Icons.navigation_outlined,
+                            text: 'Navigation Type',
+                            helper: 'Choose the type of navigation movement',
+                            scheme: scheme,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final n in _navChoices)
+                                FilterChip(
+                                  label: Text(_navChipLabel(n)),
+                                  selected: _navTypes.contains(n),
+                                  onSelected: (sel) => setState(() {
+                                    if (sel) {
+                                      _navTypes.add(n);
+                                    } else {
+                                      _navTypes.remove(n);
+                                    }
+                                    _updateAmount();
+                                  }),
+                                ),
+                            ],
+                          ),
+                        ],
+                        if (_allowances.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer.withValues(
+                                alpha: 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.currency_rupee_rounded,
+                                  color: scheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Amount: ',
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                                Text(
+                                  _fmt.format(_computedAmount),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: scheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      if (!_formKey.currentState!.validate()) return;
+                      Navigator.pop(context, _buildMovement());
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Save Movement'),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
-        FilledButton.icon(
-          onPressed: () {
-            if (!_formKey.currentState!.validate()) return;
-            Navigator.pop(context, _buildMovement());
-          },
-          icon: const Icon(Icons.check, size: 18),
-          label: const Text('Save'),
-        ),
-      ],
     );
   }
 
@@ -898,7 +1026,8 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   }
 
   Widget _buildSunHint(DateTime date) {
-    final fmt = '${date.day.toString().padLeft(2, '0')}/'
+    final fmt =
+        '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/${date.year}';
     final sun = AllowanceCalculator.getSunTimes(fmt);
     if (sun == null) return const SizedBox.shrink();
@@ -910,19 +1039,41 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wb_twilight_outlined, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.wb_twilight_outlined,
+              size: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 4),
-            Text(rise, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              rise,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(width: 12),
-            Icon(Icons.nightlight_round_outlined, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.nightlight_round_outlined,
+              size: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 4),
-            Text(set, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              set,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
@@ -956,16 +1107,15 @@ class _SectionLabel extends StatelessWidget {
             children: [
               Text(
                 text,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
               Text(
                 helper,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
           ),

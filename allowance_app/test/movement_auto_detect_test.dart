@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
@@ -89,10 +90,12 @@ void main() {
         onChanged: () {},
       ),
     ));
-    await tester.tap(find.byTooltip('Edit'));
+    await tester.drag(find.byType(Slidable), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
 
-    final dialog = find.byType(AlertDialog);
+    final dialog = find.byType(Form);
     expect(
       find.descendant(
           of: dialog, matching: find.text('Length')),

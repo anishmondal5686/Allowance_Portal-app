@@ -1,7 +1,7 @@
 name: allowance_app
 description: "Allowance Claim Portal - Android App"
 publish_to: 'none'
-version: 2.0.26+24
+version: 2.0.27+25
 
 environment:
   sdk: ^3.12.2
@@ -23,6 +23,10 @@ dependencies:
   pdfx: '>=2.9.2 <2.11.0'
   allowance_shared:
     path: ../shared
+  flutter_slidable: ^4.0.3
+  fl_chart: ^1.2.0
+  flutter_animate: ^4.5.2
+  flutter_form_builder: ^10.2.0
 
 dev_dependencies:
   flutter_test:

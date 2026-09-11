@@ -4,7 +4,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_app_v2/screens/dashboard_screen.dart';
+import 'package:allowance_app_v2/services/local_store.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
+
+/// In-memory [LocalStore] that never touches the file system.
+class _MockLocalStore extends LocalStore {
+  _MockLocalStore();
+
+  @override
+  Future<ClaimData?> load({String? month}) async => null;
+
+  @override
+  Future<List<String>> listSavedMonths() async => <String>[];
+}
 
 void main() {
   testWidgets('employee field label is DPS No. for DOCK PILOT and ADM, '
@@ -15,6 +27,7 @@ void main() {
           body: DashboardScreen(
             key: UniqueKey(),
             claimData: ClaimData(master: MasterData(designation: designation)),
+            localStore: _MockLocalStore(),
             onDataChanged: () {},
             themeId: ModernThemeId.modernMarine,
             onThemeChanged: (_) {},
@@ -22,6 +35,7 @@ void main() {
           ),
         ),
       ));
+      await tester.pumpAndSettle();
     }
 
     await pump('DOCK PILOT');

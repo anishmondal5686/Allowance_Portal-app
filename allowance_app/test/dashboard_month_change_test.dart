@@ -5,17 +5,18 @@ import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app/screens/dashboard_screen.dart';
-import 'package:allowance_app/services/drive_service.dart';
+import 'package:allowance_app/services/local_store.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
 
-/// In-memory [DriveService] subclass whose local-backup reads never touch the
+/// In-memory [LocalStore] subclass whose operations never touch the
 /// file system, so month switching is deterministic under the widget test's
 /// fake async.
-class _FakeDriveService extends DriveService {
+class _FakeLocalStore extends LocalStore {
   final Map<String, ClaimData> saved = {};
 
   @override
-  Future<ClaimData?> loadLocalBackup({String? month}) async => saved[month];
+  Future<ClaimData?> load({String? month}) async => saved[month];
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
@@ -48,7 +49,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: _FakeDriveService(),
+          localStore: _FakeLocalStore(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -59,18 +60,22 @@ void main() {
 
     expect(claim.movements, isNotEmpty);
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsOneWidget);
     expect(find.text('Start New'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
 
     await tester.tap(find.text('Start New'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-08');
     expect(claim.movements, isEmpty);
@@ -93,7 +98,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: _FakeDriveService(),
+          localStore: _FakeLocalStore(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -102,15 +107,19 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-09');
     expect(claim.attShifts, isNotEmpty);
@@ -118,7 +127,7 @@ void main() {
 
   testWidgets('changing to a saved month auto-loads the saved claim',
       (tester) async {
-    final drive = _FakeDriveService();
+    final store = _FakeLocalStore();
     final saved = ClaimData(
       master: MasterData(
         month: '2026-08',
@@ -136,7 +145,7 @@ void main() {
         allowance: 'Length',
       ),
     ]);
-    drive.saved['2026-08'] = saved;
+    store.saved['2026-08'] = saved;
 
     final claim = ClaimData(
       master: MasterData(
@@ -151,7 +160,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: drive,
+          localStore: store,
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -160,11 +169,14 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsNothing);
     expect(claim.master.month, '2026-08');
@@ -188,7 +200,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: _FakeDriveService(),
+          localStore: _FakeLocalStore(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -197,22 +209,28 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Edit an uncommitted master-field change (typing alone is not autosaved).
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+        find.byType(FormBuilderTextField).first,
+        'NEW NAME');
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Unsaved changes'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-09');
     expect(claim.attShifts, isNotEmpty);
@@ -234,7 +252,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          driveService: _FakeDriveService(),
+          localStore: _FakeLocalStore(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -243,26 +261,33 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+        find.byType(FormBuilderTextField).first,
+        'NEW NAME');
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Unsaved changes'), findsOneWidget);
 
     await tester.tap(find.text('Discard'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Continue to the 'Start a new month?' flow for the empty target month.
     expect(find.text('Start a new month?'), findsOneWidget);
     await tester.tap(find.text('Start New'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(claim.master.month, '2026-08');
   });
 }

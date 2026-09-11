@@ -82,7 +82,6 @@ class _AllowanceAppState extends State<AllowanceApp> {
               body: Center(child: CircularProgressIndicator()))
           : DashboardScreen(
               claimData: _claimData,
-              driveService: _driveService,
               themeId: _themeId,
               onThemeChanged: _onThemeChanged,
               onDataChanged: _onDataChanged,

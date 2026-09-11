@@ -827,35 +827,36 @@ class OfficialFormsService {
         w.add(_totalClaimLine(f, nwTerms, actTotal + wAmt,
             const [22.7, 572.2], 680));
       }
-      w.add(_txt(f, 'The Manager, (P&IR) Haldia Dock Complex', 22.7, 748.6, 7.88));
-      w.add(_txt(f, 'Forwarded for necessary action at the earliest', 22.7,
-          759.1, 7.88));
-      w.add(_cell(f, 'The Manager (M.O.), HDC', [390.0, 572.7], 748.6, 7.88,
+      w.add(_txt(f, 'The Manager (P&IR)', 45.4, 690.1, 7.88));
+      w.add(_txt(f, 'Haldia Dock Complex', 45.4, 701.4, 7.88));
+      w.add(_txt(
+          f, 'Forwarded for necessary action at the earliest.', 45.4, 711.9, 7.88));
+      w.add(_cell(f, 'The Manager, Marine', [380.0, 550.2], 690.1, 7.88,
           bold: true));
-      w.add(_cell(f, 'Certified that the statement is correct', [390.0, 572.7],
-          759.1, 7.88,
+      w.add(_cell(f, 'Certified that the statement is correct', [380.0, 550.2],
+          701.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Manager', [22.7, 200.0], 786.4, 7.88, bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [22.7, 200.0], 796.5, 7.88,
+      w.add(_cell(f, 'Manager', [45.0, 170.0], 753.9, 7.88, bold: true));
+      w.add(_cell(f, 'Marine Ops. Division,', [45.0, 170.0], 764.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [22.7, 200.0], 806.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [45.0, 170.0], 774.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Deputy Dock Master,', [200.0, 325.0], 786.4, 7.88,
+      w.add(_cell(f, 'Dy. Dock Master', [170.0, 290.0], 753.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [200.0, 325.0], 796.5, 7.88,
+      w.add(_cell(f, 'Marine Ops. Division', [170.0, 290.0], 764.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [200.0, 325.0], 806.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [170.0, 290.0], 774.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Asst. Dock Master', [325.0, 450.0], 786.4, 7.88,
+      w.add(_cell(f, 'Asst. Dock Master', [290.0, 410.0], 753.9, 7.88,
           bold: true));
-      w.add(_cell(f, 'Marine Ops. Division', [325.0, 450.0], 796.5, 7.88,
+      w.add(_cell(f, 'Marine Ops. Division', [290.0, 410.0], 764.4, 7.88,
           bold: true));
-      w.add(_cell(f, 'Haldia Dock Complex', [325.0, 450.0], 806.6, 7.88,
+      w.add(_cell(f, 'Haldia Dock Complex', [290.0, 410.0], 774.9, 7.88,
           bold: true));
-      final sigLine1 = _signatureLabel(data.master.isAdm);
-      final sigLine2 = _signatureRole(data.master);
-      w.add(_cell(f, sigLine1, [450.0, 572.7], 786.4, 7.88, bold: true));
-      w.add(_cell(f, sigLine2, [450.0, 572.7], 796.5, 7.88, bold: true));
+      w.add(_cell(f, _signatureLabel(m.isAdm), [410.0, 550.0], 753.9, 7.88,
+          bold: true));
+      w.add(_cell(f, _signatureRole(m), [410.0, 550.0], 764.4, 7.88,
+          bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.zero,

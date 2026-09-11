@@ -7,6 +7,7 @@ import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app_v2/screens/dashboard_screen.dart';
 import 'package:allowance_app_v2/services/local_store.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
 
 /// In-memory [LocalStore] that never touches path_provider or the file system,
 /// so month switching is deterministic under the widget test's fake async.
@@ -58,18 +59,22 @@ void main() {
 
     expect(claim.movements, isNotEmpty);
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsOneWidget);
     expect(find.text('Start New'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
 
     await tester.tap(find.text('Start New'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-08');
     expect(claim.movements, isEmpty);
@@ -101,15 +106,19 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-09');
     expect(claim.attShifts, isNotEmpty);
@@ -159,11 +168,14 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Start a new month?'), findsNothing);
     expect(claim.master.month, '2026-08');
@@ -196,22 +208,28 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Edit an uncommitted master-field change (typing alone is not autosaved).
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+        find.byType(FormBuilderTextField).first,
+        'NEW NAME');
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Unsaved changes'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(claim.master.month, '2026-09');
     expect(claim.attShifts, isNotEmpty);
@@ -242,26 +260,33 @@ void main() {
       ),
     ));
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'TEST USER'), 'NEW NAME');
+        find.byType(FormBuilderTextField).first,
+        'NEW NAME');
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('August').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Unsaved changes'), findsOneWidget);
 
     await tester.tap(find.text('Discard'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Continue to the 'Start a new month?' flow for the empty target month.
     expect(find.text('Start a new month?'), findsOneWidget);
     await tester.tap(find.text('Start New'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(claim.master.month, '2026-08');
   });
 }

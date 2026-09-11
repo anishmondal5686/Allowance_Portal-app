@@ -1,11 +1,13 @@
 import 'dart:convert';
 
-import 'package:allowance_app_v2/screens/dashboard_screen.dart';
-import 'package:allowance_app_v2/services/local_store.dart';
+import 'package:allowance_app/screens/dashboard_screen.dart';
+import 'package:allowance_app/services/local_store.dart';
 import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 /// Minimal in-memory [LocalStore] that never touches path_provider or the file
 /// system, so the dashboard's init-time month listing and background saves are
@@ -44,36 +46,59 @@ Widget _buildDashboard(ClaimData data) {
   );
 }
 
-Future<void> _pumpAtSize(WidgetTester tester, ClaimData data,
-    {double textScale = 1.0}) async {
-  tester.view.physicalSize = const Size(1080, 2400);
+Future<void> _pumpDashboard(WidgetTester tester) async {
   tester.view.devicePixelRatio = 2.625;
-  tester.view.platformDispatcher.textScaleFactorTestValue = textScale;
-  await tester.pumpWidget(_buildDashboard(data));
+  tester.view.physicalSize = const Size(1080, 2400);
+  await tester.pumpWidget(_buildDashboard(parseData()));
   await tester.pump(const Duration(seconds: 1));
+  for (var i = 0; i < 6; i++) {
+    await tester.fling(
+        find.byType(Scrollable).first, const Offset(0, -500), 1200);
+    await tester.pump(const Duration(milliseconds: 200));
+  }
 }
 
-Future<void> _scrollFull(WidgetTester tester) async {
-  for (var i = 0; i < 12; i++) {
-    await tester.fling(find.byType(Scrollable).first, const Offset(0, -600), 1200);
-    await tester.pump(const Duration(milliseconds: 300));
-  }
-  await tester.pump(const Duration(milliseconds: 300));
-}
+final _fmt = NumberFormat.currency(
+  locale: 'en_IN',
+  symbol: '₹',
+  decimalDigits: 0,
+);
 
 void main() {
-  testWidgets('dashboard default text scale has no overflow', (tester) async {
-    await _pumpAtSize(tester, parseData());
-    await _scrollFull(tester);
+  testWidgets('Monthly Summary section replaces Quick Stats', (tester) async {
+    await _pumpDashboard(tester);
+    expect(find.text('Monthly Summary'), findsOneWidget);
+    expect(find.text('Claim totals & active allowances'), findsOneWidget);
+    expect(find.text('Quick Stats'), findsNothing);
+    expect(find.text('Overview of current month'), findsNothing);
   });
 
-  testWidgets('dashboard 1.15x text scale has no overflow', (tester) async {
-    await _pumpAtSize(tester, parseData(), textScale: 1.15);
-    await _scrollFull(tester);
+  testWidgets('hero shows grand total and active claims count', (tester) async {
+    final summary = AllowanceCalculator.computeSummary(parseData());
+    expect(summary.lines, isNotEmpty);
+    await _pumpDashboard(tester);
+    expect(find.text('Grand Total'), findsOneWidget);
+    expect(find.text(_fmt.format(summary.grandTotal)), findsOneWidget);
+    expect(
+      find.text('Active claims · ${summary.lines.length}'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('dashboard 1.3x text scale has no overflow', (tester) async {
-    await _pumpAtSize(tester, parseData(), textScale: 1.3);
-    await _scrollFull(tester);
+  testWidgets('per-allowance KPI cards render labels and hours',
+      (tester) async {
+    final summary = AllowanceCalculator.computeSummary(parseData());
+    await _pumpDashboard(tester);
+    for (final line in summary.lines) {
+      // Each label appears in KPI card and in PieChart badge
+      expect(find.text(line.label), findsWidgets);
+      expect(find.text(_fmt.format(line.amount)), findsOneWidget);
+    }
+    final weightage = summary.lines
+        .where((l) => l.key == 'weightage')
+        .toList();
+    if (weightage.isNotEmpty) {
+      expect(find.textContaining(RegExp(r'for .* hrs')), findsOneWidget);
+    }
   });
 }

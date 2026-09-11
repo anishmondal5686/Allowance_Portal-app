@@ -228,11 +228,13 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
                     onPressed: _printing ? null : _preview,
                     icon: const Icon(Icons.visibility_outlined),
                     label: const Text('Preview'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  flex: 2,
                   child: FilledButton.icon(
                     onPressed: _printing ? null : _print,
                     icon: _printing
@@ -242,6 +244,9 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.print),
                     label: const Text('Print / PDF'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
                   ),
                 ),
               ],

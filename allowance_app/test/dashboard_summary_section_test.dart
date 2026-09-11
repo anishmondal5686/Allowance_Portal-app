@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:allowance_app/screens/dashboard_screen.dart';
-import 'package:allowance_app/services/local_store.dart';
+import 'package:allowance_app/services/drive_service.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
@@ -9,21 +9,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
-/// Minimal in-memory [LocalStore] that never touches path_provider or the file
-/// system, so the dashboard's init-time month listing and background saves are
-/// deterministic under the widget test's fake async clock.
-class MockLocalStore implements LocalStore {
+/// Minimal in-memory [DriveService] that never touches storage or the network,
+/// so the dashboard's init-time month listing is deterministic under the
+/// widget test's fake async clock.
+class _FakeDriveService extends DriveService {
   @override
   Future<List<String>> listSavedMonths() async => <String>[];
 
   @override
-  Future<ClaimData?> load({String? month}) async => null;
-
-  @override
-  Future<String> save(ClaimData data) async => '';
-
-  @override
-  Future<void> pruneToNewest(int n) async {}
+  Future<ClaimData?> loadLocalBackup({String? month}) async => null;
 }
 
 const String augustJson = r'''
@@ -41,7 +35,7 @@ Widget _buildDashboard(ClaimData data) {
       themeId: ModernThemeId.modernMarine,
       onThemeChanged: (_) {},
       appVersion: '2.0.8',
-      localStore: MockLocalStore(),
+      driveService: _FakeDriveService(),
     ),
   );
 }

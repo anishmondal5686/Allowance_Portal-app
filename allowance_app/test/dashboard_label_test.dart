@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_app/screens/dashboard_screen.dart';
-import 'package:allowance_app/services/local_store.dart';
+import 'package:allowance_app/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 
-/// In-memory [LocalStore] that never touches the file system.
-class _MockLocalStore extends LocalStore {
-  _MockLocalStore();
+/// In-memory [DriveService] that never touches storage or the network.
+class _FakeDriveService extends DriveService {
+  _FakeDriveService();
 
   @override
-  Future<ClaimData?> load({String? month}) async => null;
+  Future<ClaimData?> loadLocalBackup({String? month}) async => null;
 
   @override
   Future<List<String>> listSavedMonths() async => <String>[];
@@ -27,7 +27,7 @@ void main() {
           body: DashboardScreen(
             key: UniqueKey(),
             claimData: ClaimData(master: MasterData(designation: designation)),
-            localStore: _MockLocalStore(),
+            driveService: _FakeDriveService(),
             onDataChanged: () {},
             themeId: ModernThemeId.modernMarine,
             onThemeChanged: (_) {},

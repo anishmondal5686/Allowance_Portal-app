@@ -5,18 +5,18 @@ import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app/screens/dashboard_screen.dart';
-import 'package:allowance_app/services/local_store.dart';
+import 'package:allowance_app/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 
-/// In-memory [LocalStore] subclass whose operations never touch the
+/// In-memory [DriveService] subclass whose operations never touch the
 /// file system, so month switching is deterministic under the widget test's
 /// fake async.
-class _FakeLocalStore extends LocalStore {
+class _FakeDriveService extends DriveService {
   final Map<String, ClaimData> saved = {};
 
   @override
-  Future<ClaimData?> load({String? month}) async => saved[month];
+  Future<ClaimData?> loadLocalBackup({String? month}) async => saved[month];
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
@@ -49,7 +49,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -98,7 +98,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -127,7 +127,7 @@ void main() {
 
   testWidgets('changing to a saved month auto-loads the saved claim',
       (tester) async {
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     final saved = ClaimData(
       master: MasterData(
         month: '2026-08',
@@ -160,7 +160,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          localStore: store,
+          driveService: store,
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -200,7 +200,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
@@ -252,7 +252,7 @@ void main() {
         body: DashboardScreen(
           key: UniqueKey(),
           claimData: claim,
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
           onDataChanged: () {},
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},

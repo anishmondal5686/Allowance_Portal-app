@@ -15,7 +15,7 @@ import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/services/update_service.dart';
-import 'package:allowance_app/services/local_store.dart';
+import 'package:allowance_app/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'attendance_screen.dart';
 import 'claim_summary_screen.dart';
@@ -33,20 +33,20 @@ class _UpperCaseTextFormatter extends TextInputFormatter {
 
 class DashboardScreen extends StatefulWidget {
   final ClaimData claimData;
+  final DriveService driveService;
   final VoidCallback onDataChanged;
   final ModernThemeId themeId;
   final ValueChanged<ModernThemeId> onThemeChanged;
   final String appVersion;
-  final LocalStore? localStore;
 
   const DashboardScreen({
     super.key,
     required this.claimData,
+    required this.driveService,
     required this.onDataChanged,
     required this.themeId,
     required this.onThemeChanged,
     required this.appVersion,
-    this.localStore,
   });
 
   @override
@@ -60,8 +60,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _currentDesignation = '';
   late DateTime _sunDate;
 
-  late final LocalStore _localStore = widget.localStore ?? LocalStore();
   Set<String> _savedMonths = {};
+  bool _syncing = false;
+  String _syncStatus = '';
   late String _savedBaselineGlyph;
 
   static const _designationOptions = [
@@ -98,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _refreshSavedMonths() async {
     try {
-      final list = await _localStore.listSavedMonths();
+      final list = await widget.driveService.listSavedMonths();
       if (!mounted) return;
       setState(() => _savedMonths = list.toSet());
     } catch (_) {
@@ -108,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _checkForUpdate({bool manual = false}) async {
     final info = await UpdateService.checkForUpdate(widget.appVersion,
-        appVariant: 'v2');
+        appVariant: 'v1');
     if (!mounted) return;
     if (info == null) {
       if (manual) _showSnack('You are up to date (v${widget.appVersion})');
@@ -245,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .convert(widget.claimData.toJson());
       final dir = await getTemporaryDirectory();
       final name = widget.claimData.master.month.isNotEmpty
-          ? LocalStore.monthFileName(widget.claimData.master.month)
+          ? DriveService.monthFileName(widget.claimData.master.month)
           : 'allowance-data.json';
       final file = File('${dir.path}${Platform.pathSeparator}$name');
       await file.writeAsString(jsonStr);
@@ -295,6 +296,131 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       _showSnack('Import failed: invalid JSON');
     }
+  }
+
+  Future<void> _syncToDrive() async {
+    setState(() => _syncing = true);
+    try {
+      _saveMaster();
+      final result = await widget.driveService.uploadClaim(widget.claimData);
+      await widget.driveService.saveLocalBackup(widget.claimData);
+      _savedBaselineGlyph = _currentEditGlyph();
+      if (result.success) {
+        setState(() => _syncStatus = 'Synced to Drive');
+        _showSnack('Uploaded to Drive');
+      } else {
+        setState(() => _syncStatus = 'Sync failed: ${result.error}');
+        _showSnack('Upload failed: ${result.error}');
+      }
+    } finally {
+      setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _syncFromDrive() async {
+    setState(() => _syncing = true);
+    try {
+      final currentMonth = MasterData.monthKey(_selectedYear, _selectedMonth);
+      var result = currentMonth.isNotEmpty
+          ? await widget.driveService.downloadClaim(
+              target: widget.claimData,
+              fileName: DriveService.monthFileName(currentMonth),
+            )
+          : SyncResult(false, 'No file found');
+      if (!result.success) {
+        final picked = await _pickMonthFileFromDrive();
+        if (picked == null) return;
+        result = await widget.driveService.downloadClaim(
+          target: widget.claimData,
+          fileName: picked,
+        );
+      }
+      if (result.success) {
+        _applyMaster(widget.claimData.master);
+        widget.onDataChanged();
+        setState(() => _syncStatus = 'Loaded from Drive');
+        _showSnack('Data loaded from Drive');
+      } else {
+        setState(() => _syncStatus = 'Download failed: ${result.error}');
+        _showSnack('Download failed: ${result.error}');
+      }
+    } finally {
+      setState(() => _syncing = false);
+    }
+  }
+
+  Future<String?> _pickMonthFileFromDrive() async {
+    final files = await widget.driveService.listDriveFiles();
+    if (files.isEmpty) {
+      _showSnack('No saved data found on Drive');
+      return null;
+    }
+    if (mounted) {
+      final picked = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Select month'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: files
+                  .map((f) => ListTile(
+                        title: Text(f.replaceAll('.json', '')),
+                        onTap: () => Navigator.pop(context, f),
+                      ))
+                  .toList(),
+            ),
+          ),
+        ),
+      );
+      return picked;
+    }
+    return null;
+  }
+
+  Future<void> _handleDriveSignIn() async {
+    final result = await widget.driveService.signIn();
+    if (!result.success) {
+      if (mounted) _showSnack('Sign-in failed: ${result.error}');
+      return;
+    }
+    final local = await widget.driveService.loadLocalBackup();
+    if (local != null) {
+      if (!mounted) return;
+      final useLocal = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Local Backup Found'),
+          content: const Text('Load local backup or fetch from Drive?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Fetch from Drive')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Load Local')),
+          ],
+        ),
+      );
+      if (useLocal == true) {
+        _applyMaster(local.master);
+        widget.claimData.movements
+          ..clear()
+          ..addAll(local.movements);
+        widget.claimData.attShifts = local.attShifts;
+        widget.claimData.attManualDates = local.attManualDates;
+        widget.claimData.attLocked = local.attLocked;
+        widget.claimData.attOffDay = local.attOffDay;
+        widget.claimData.attRotation = local.attRotation;
+        widget.onDataChanged();
+        setState(() {});
+        _showSnack('Loaded local backup');
+      } else {
+        await _syncFromDrive();
+      }
+    }
+    setState(() {});
   }
 
   int get _movementCount =>
@@ -460,7 +586,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // If this month was saved before, restore it instead of starting fresh.
     final saved =
-        await _localStore.load(month: MasterData.monthKey(newYear, newMonth));
+        await widget.driveService.loadLocalBackup(month: MasterData.monthKey(newYear, newMonth));
     if (saved != null) {
       widget.claimData.master = saved.master;
       _applyMaster(saved.master);
@@ -864,6 +990,98 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 32),
+              _SectionHeader(
+                title: 'Drive Sync',
+                subtitle: widget.driveService.isSignedIn
+                    ? widget.driveService.currentUser?.email ?? ''
+                    : 'Backup your data to Google Drive',
+                icon: Icons.cloud_outlined,
+              ),
+              const SizedBox(height: 16),
+              _ModernCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.driveService.isSignedIn)
+                      if (_syncing)
+                        const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                icon: const Icon(Icons.upload),
+                                label: const Text('Upload to Drive'),
+                                onPressed: _syncToDrive,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.download),
+                                label: const Text('Download'),
+                                onPressed: _syncFromDrive,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.logout),
+                          label: const Text('Sign Out'),
+                          onPressed: () {
+                            widget.driveService.signOut();
+                            setState(() {});
+                          },
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                      ]
+                    else
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: const Icon(Icons.login),
+                        label: const Text('Sign in with Google for Drive Sync'),
+                        onPressed: _handleDriveSignIn,
+                      ),
+                    if (_syncStatus.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Text(
+                          _syncStatus,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _syncStatus.contains('fail') ||
+                                    _syncStatus.contains('error')
+                                ? scheme.error
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 32),
               Center(

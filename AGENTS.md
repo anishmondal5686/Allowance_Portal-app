@@ -37,6 +37,8 @@ Run builds sequentially (Gradle daemons collide if run in parallel):
   - v2 APK must start `allowance_app_v2_` (e.g. `allowance_app_v2_2.0.25-arm64-v8a_RELEASE.apk`)
   - v1 names must NEVER contain the substring `v2` (old installed apps filter by `contains('v1')`/`contains('v2')`)
 - Never use a v1 asset name like `allowance_app_v2.0.XX-apk` — it contains `v2` and lacks `v1`, breaking in-app update for both apps.
+- **Every release MUST bump BOTH** the `version:` in both `pubspec.yaml` files AND `static const _appVersion` in both `lib/main.dart` to the SAME version string (a stale `_appVersion` causes the in-app updater to re-prompt forever).
+- `_checkForUpdate`'s `appVariant` in `dashboard_screen.dart` must stay `'v1'` in `allowance_app` and `'v2'` in `allowance_app_v2`. Never mirror this line between apps.
 
 ## Verify
 Run analyze + tests across all 3 packages:
@@ -63,4 +65,5 @@ Use the project `/verify` command.
 ## Architecture Guardrails
 - **Shared First:** Any change to allowance calculations, movement models, official form generation, print services, or themes MUST be made in `shared/lib/` only. Never duplicate shared services into app-specific folders.
 - **UI Parity:** Any change made to a screen in `allowance_app/lib/screens/` must be mirrored in `allowance_app_v2/lib/screens/` unless it specifically involves Google Drive sync or local-only persistence.
+- **v1 vs v2 storage (DO NOT "ALIGN"):** v1's dashboard month history reads/writes `DriveService` (`loadLocalBackup`/`listSavedMonths` → `Allowance App/<userKey>/` subfolder) and shows the Drive Sync card; v2 uses `LocalStore` (documents root) and has no Drive UI. These divergences are intentional — restoring "byte-identical except import" parity here is what broke v1's green ticks. The `dashboard_screen.dart` files legitimately differ in: import, `appVariant` line, `driveService` vs `localStore` param, month-storage calls, and the Drive Sync card.
 - **Sequential Builds:** Never trigger concurrent Gradle builds. Always build one package at a time.

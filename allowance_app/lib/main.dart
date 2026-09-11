@@ -19,7 +19,7 @@ class AllowanceApp extends StatefulWidget {
 }
 
 class _AllowanceAppState extends State<AllowanceApp> {
-  static const _appVersion = '2.0.26';
+  static const _appVersion = '2.0.28';
   final ClaimData _claimData = ClaimData();
   final DriveService _driveService = DriveService();
   final ThemeStore _themeStore = ThemeStore();
@@ -82,6 +82,7 @@ class _AllowanceAppState extends State<AllowanceApp> {
               body: Center(child: CircularProgressIndicator()))
           : DashboardScreen(
               claimData: _claimData,
+              driveService: _driveService,
               themeId: _themeId,
               onThemeChanged: _onThemeChanged,
               onDataChanged: _onDataChanged,

@@ -825,7 +825,7 @@ class OfficialFormsService {
       ];
       if (nwTerms.isNotEmpty) {
         w.add(_totalClaimLine(f, nwTerms, actTotal + wAmt,
-            const [22.7, 572.2], 680));
+            const [22.7, 572.2], 672));
       }
       w.add(_txt(f, 'The Manager (P&IR)', 45.4, 690.1, 7.88));
       w.add(_txt(f, 'Haldia Dock Complex', 45.4, 701.4, 7.88));

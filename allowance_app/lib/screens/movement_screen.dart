@@ -576,16 +576,19 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
 
   void _autoDetect() {
     final result = AllowanceCalculator.autoDetect(movement: _buildMovement());
+    final applicable =
+        result.applicable.where(_allowanceChoices.contains).toList();
+    final navTypes = result.navTypes.where(_navChoices.contains).toList();
     setState(() {
       _allowances
         ..clear()
-        ..addAll(result.applicable);
+        ..addAll(applicable);
       _navTypes
         ..clear()
-        ..addAll(result.navTypes);
-      _detectInfo = result.applicable.isEmpty
+        ..addAll(navTypes);
+      _detectInfo = applicable.isEmpty
           ? 'No allowances detected'
-          : 'Detected: ${result.applicable.join(', ')}';
+          : 'Detected: ${applicable.join(', ')}';
       _updateAmount();
     });
   }
@@ -782,27 +785,25 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        if (widget.claimData.master.isBerthingPilot) ...[
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _autoDetect,
-                              icon: const Icon(Icons.auto_awesome, size: 18),
-                              label: const Text('Auto-detect allowances'),
-                            ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _autoDetect,
+                            icon: const Icon(Icons.auto_awesome, size: 18),
+                            label: const Text('Auto-detect allowances'),
                           ),
-                          if (_detectInfo.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(
-                                _detectInfo,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                        ),
+                        if (_detectInfo.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              _detectInfo,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
-                        ],
+                          ),
                         const SizedBox(height: 12),
                         _SectionLabel(
                           icon: Icons.tune_rounded,

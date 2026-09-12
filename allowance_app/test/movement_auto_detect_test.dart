@@ -8,8 +8,8 @@ import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app/screens/movement_screen.dart';
 
 void main() {
-  testWidgets('Auto-detect is shown for Berthing Pilot but hidden for '
-      'DOCK PILOT and ADM', (tester) async {
+  testWidgets('Auto-detect is shown for Berthing Pilot, Dock Pilot and ADM',
+      (tester) async {
     Future<void> pump(String designation) async {
       await tester.pumpWidget(MaterialApp(
         key: UniqueKey(),
@@ -29,10 +29,135 @@ void main() {
     expect(find.text('Auto-detect allowances'), findsOneWidget);
 
     await pump('DOCK PILOT');
-    expect(find.text('Auto-detect allowances'), findsNothing);
+    expect(find.text('Auto-detect allowances'), findsOneWidget);
 
     await pump('ADM');
-    expect(find.text('Auto-detect allowances'), findsNothing);
+    expect(find.text('Auto-detect allowances'), findsOneWidget);
+  });
+
+  testWidgets('Auto-detect marks allowances at DP rates for a dark '
+      'LOCK->BASIN movement (LOA 229)', (tester) async {
+    final data = ClaimData(
+      master: MasterData(month: 'JULY, 2026', designation: 'DOCK PILOT'),
+    );
+    data.movements.add(Movement(
+        date: '12/07/26',
+        vessel: 'MV MATHRAKI',
+        from: 'LOCK',
+        to: 'BASIN',
+        start: '23:00',
+        end: '02:00',
+        loa: '229',
+        beam: '32'));
+    await tester.pumpWidget(MaterialApp(
+      home: MovementScreen(
+        key: UniqueKey(),
+        claimData: data,
+        onChanged: () {},
+      ),
+    ));
+    await tester.drag(find.byType(Slidable), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Auto-detect allowances'));
+    await tester.tap(find.text('Auto-detect allowances'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detected: length, nightact, navigation'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Length'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Night Act'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Night Nav'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(
+              find.widgetWithText(FilterChip, 'Lock to App. Jetty & vice versa'))
+          .selected,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'In ≥210'))
+          .selected,
+      isTrue,
+    );
+    expect(find.textContaining('1,055'), findsOneWidget);
+  });
+
+  testWidgets('Auto-detect for ADM filters Night Act out of a dark '
+      'LOCK->BASIN movement (LOA 229)', (tester) async {
+    final data = ClaimData(
+      master: MasterData(month: 'JULY, 2026', designation: 'ADM'),
+    );
+    data.movements.add(Movement(
+        date: '12/07/26',
+        vessel: 'MV MATHRAKI',
+        from: 'LOCK',
+        to: 'BASIN',
+        start: '23:00',
+        end: '02:00',
+        loa: '229',
+        beam: '32'));
+    await tester.pumpWidget(MaterialApp(
+      home: MovementScreen(
+        key: UniqueKey(),
+        claimData: data,
+        onChanged: () {},
+      ),
+    ));
+    await tester.drag(find.byType(Slidable), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Auto-detect allowances'));
+    await tester.tap(find.text('Auto-detect allowances'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detected: length, navigation'), findsOneWidget);
+    expect(find.text('Night Act'), findsNothing);
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Length'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Night Nav'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(
+              find.widgetWithText(FilterChip, 'Lock to App. Jetty & vice versa'))
+          .selected,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'In ≥210'))
+          .selected,
+      isTrue,
+    );
+    expect(find.textContaining('850'), findsOneWidget);
   });
 
   testWidgets('ADM movement form offers Length, Lock and Night Nav with '

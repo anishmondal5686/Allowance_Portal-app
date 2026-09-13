@@ -377,12 +377,12 @@ class OfficialFormsService {
         .where((m) =>
             m.hasAllowance('length') &&
             (double.tryParse(m.loa) ?? 0) >= 175.26 &&
-            !acting.contains(AllowanceCalculator.normDateKey(m.date)))
+            !acting.contains(AllowanceCalculator.movementShiftDate(m)))
         .toList();
     final cold = moves
         .where((m) =>
             m.hasAllowance('cold') &&
-            !acting.contains(AllowanceCalculator.normDateKey(m.date)))
+            !acting.contains(AllowanceCalculator.movementShiftDate(m)))
         .toList();
     final pages = math.max(
         1,
@@ -424,6 +424,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 270.7, 127.0, 9.5, bold: true));
       w.add(_txt(f, 'Emp I.D:', 389.9, 127.0, 8.25, bold: true));
       w.add(_txt(f, m.employee, 427.5, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 540.0, 127.0, 9.5, bold: true));
       w.add(_txt(
           f,
           '(1) LENGTH ALLOWANCE ( Code - 077 )'
@@ -581,6 +583,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 270.7, 127.0, 9.5, bold: true));
       w.add(_txt(f, 'Emp I.D:', 389.9, 127.0, 8.25, bold: true));
       w.add(_txt(f, m.employee, 427.5, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 540.0, 127.0, 9.5, bold: true));
       w.add(_txt(
           f,
           '(1) LENGTH ALLOWANCE ( Code - 077 )'
@@ -760,6 +764,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 267.7, 129.0, 9.5, bold: true));
       w.add(_txt(f, 'Emp I.D :', 396.4, 129.0, 8.25, bold: true));
       w.add(_txt(f, m.employee, 436.5, 129.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 129.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 540.0, 129.0, 9.5, bold: true));
       w.add(_txt(f, '(1) NIGHT ACT ALLOWANCE (Code - 082)', 213.3, 145.9, 8.62,
           bold: true));
       w.addAll(_grid(_naRows, _naXs, gray: true, grayRows: 1));
@@ -916,6 +922,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 78.0, 153.0, 9.5, bold: true));
       w.add(_txt(f, 'DPS No.', 311.2, 153.0, 8.25, bold: true));
       w.add(_txt(f, m.employee, 365.0, 153.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 418.0, 153.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 476.0, 153.0, 9.5, bold: true));
       if (m.isBerthingPilot) {
         w.add(_txt(
             f, 'Consolidated Pay \u2013 Rs.', 22.7, 174.0, 8.25, bold: true));
@@ -1310,6 +1318,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 250.0, 194.3, 11.5, bold: true));
       w.add(_txt(f, 'DPS/Employee No.:', 311.2, 194.3, 9.0, bold: true));
       w.add(_txt(f, m.employee, 401.2, 194.3, 11.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 468.0, 194.3, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 526.0, 194.3, 9.5, bold: true));
       w.add(_txt(
           f,
           '(1) LOCK TO APPROACH JETTY (WITHOUT RIVER PILOT) (CODE - 067)',
@@ -1462,7 +1472,7 @@ class OfficialFormsService {
     final items = <(Movement, String)>[];
     for (final mv in AllowanceCalculator.movementsForMonth(data)) {
       if (!mv.hasAllowance('navigation')) continue;
-      if (acting.contains(AllowanceCalculator.normDateKey(mv.date))) continue;
+      if (acting.contains(AllowanceCalculator.movementShiftDate(mv))) continue;
       if (mv.navigationTypes.isNotEmpty) {
         for (final t in mv.navigationTypes) {
           items.add((mv, _navTypeLabel(t)));
@@ -1496,6 +1506,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.name, 57.8, 67.6, 11.5, bold: true));
       w.add(_txt(f, 'Designation:', 345.6, 67.6, 9.0, bold: true));
       w.add(_txt(f, m.designation, 402.1, 67.6, 11.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 520.0, 67.6, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 582.0, 67.6, 9.5, bold: true));
       w.add(_txt(f, 'Emp. I.D :', 662.8, 67.6, 9.0, bold: true));
       w.add(_txt(f, m.employee, 706.3, 67.6, 11.5, bold: true));
       w.addAll(_grid(_navRows, _navXs, merged: _navMerged));
@@ -1684,6 +1696,8 @@ class OfficialFormsService {
       w.add(_txt(f, m.bill, 103.5, 172, 11.5, bold: true));
       w.add(_txt(f, 'DPS/Employee No.:', 311.2, 172, 9.0, bold: true));
       w.add(_txt(f, m.employee, 401.2, 172, 11.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 468.0, 172, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 526.0, 172, 9.5, bold: true));
       if (m.isBerthingPilot) {
         w.add(
             _txt(f, 'Consolidated Pay \u2013 Rs.', 39.8, 194, 9.0, bold: true));

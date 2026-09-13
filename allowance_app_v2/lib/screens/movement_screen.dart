@@ -110,7 +110,7 @@ class _MovementScreenState extends State<MovementScreen> {
                         movement: m,
                         adm:
                             widget.claimData.master.isAdm ||
-                            widget.claimData.isActingAdmOn(m.date),
+                            widget.claimData.isActingAdmOn(AllowanceCalculator.movementShiftDate(m)),
                       ),
                 );
                 return _MovementCard(
@@ -121,7 +121,7 @@ class _MovementScreenState extends State<MovementScreen> {
                     m.allowances,
                     adm:
                         widget.claimData.master.isAdm ||
-                        widget.claimData.isActingAdmOn(m.date),
+                        widget.claimData.isActingAdmOn(AllowanceCalculator.movementShiftDate(m)),
                   ),
                   navLabel: _navLabel(m.navigationTypes),
                   scheme: scheme,
@@ -536,7 +536,7 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   bool get _isAdm =>
       widget.claimData.master.isAdm ||
       widget.claimData.isActingAdmOn(
-        '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}',
+        AllowanceCalculator.movementShiftDate(_buildMovement()),
       );
 
   List<String> get _allowanceChoices =>

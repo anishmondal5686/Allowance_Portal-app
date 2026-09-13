@@ -17,6 +17,7 @@ void main() {
         name: 'A Pilot',
         designation: 'Berthing Pilot',
         employee: 'EMP 123',
+        sapEmployeeId: '500079411',
         pay: '100000',
         bill: 'BILL 1',
       ),
@@ -358,6 +359,98 @@ void main() {
       final name = switch (form) {
         OfficialForm.nightActWeightageAdmDuty => 'actingDp_adm_night.pdf',
         _ => 'actingDp_adm_nav.pdf',
+      };
+      final f = File('${dir.path}\\$name');
+      f.writeAsBytesSync(bytes);
+      expect(f.lengthSync(), greaterThan(500));
+    }
+
+    // Post-midnight movement on an acting-ADM night shift (12/07 night,
+    // movement started 00:45 on 13/07). Billing/ADM-duty forms attribute by
+    // shift date; a movement this early belongs to the 12/07 acting shift.
+    final pmActing = ClaimData(
+      master: MasterData(
+        month: 'JULY, 2026',
+        name: 'A Berthing Pilot',
+        designation: 'Berthing Pilot',
+        employee: 'EMP 321',
+        pay: '100000',
+        bill: 'BILL 4',
+      ),
+      attShifts: {
+        '2026-07-11': 'N',
+        '2026-07-12': 'N',
+        '2026-07-13': 'N',
+      },
+      actingAdmDates: ['2026-07-12'],
+    );
+    pmActing.attLocked = true;
+    pmActing.movements.add(Movement(
+        date: '13/07/26',
+        vessel: 'MV PM NAV',
+        from: 'LOCK',
+        to: 'BASIN',
+        start: '00:45',
+        end: '01:45',
+        loa: '229',
+        beam: '32.26',
+        allowances: ['navigation', 'nightact'],
+        navigationTypes: ['inward-210']));
+    for (final form in [
+      OfficialForm.nightActWeightage,
+      OfficialForm.nightNavigation,
+      OfficialForm.nightNavigationAdmDuty,
+    ]) {
+      final bytes = await OfficialFormsService.buildFormPdf(form, pmActing);
+      final name = switch (form) {
+        OfficialForm.nightActWeightage => 'pm_acting_own_night.pdf',
+        OfficialForm.nightNavigation => 'pm_acting_own_nav.pdf',
+        _ => 'pm_acting_adm_nav.pdf',
+      };
+      final f = File('${dir.path}\\$name');
+      f.writeAsBytesSync(bytes);
+      expect(f.lengthSync(), greaterThan(500));
+    }
+
+    // Same data with the acting toggle NOT saved (empty actingAdmDates):
+    // every acting filter silently no-ops, reproducing the raw symptoms.
+    final pmEmpty = ClaimData(
+      master: MasterData(
+        month: 'JULY, 2026',
+        name: 'A Berthing Pilot',
+        designation: 'Berthing Pilot',
+        employee: 'EMP 321',
+        pay: '100000',
+        bill: 'BILL 4',
+      ),
+      attShifts: {
+        '2026-07-11': 'N',
+        '2026-07-12': 'N',
+        '2026-07-13': 'N',
+      },
+    );
+    pmEmpty.attLocked = true;
+    pmEmpty.movements.add(Movement(
+        date: '13/07/26',
+        vessel: 'MV PM NAV',
+        from: 'LOCK',
+        to: 'BASIN',
+        start: '00:45',
+        end: '01:45',
+        loa: '229',
+        beam: '32.26',
+        allowances: ['navigation', 'nightact'],
+        navigationTypes: ['inward-210']));
+    for (final form in [
+      OfficialForm.nightActWeightage,
+      OfficialForm.nightNavigation,
+      OfficialForm.nightNavigationAdmDuty,
+    ]) {
+      final bytes = await OfficialFormsService.buildFormPdf(form, pmEmpty);
+      final name = switch (form) {
+        OfficialForm.nightActWeightage => 'pm_empty_own_night.pdf',
+        OfficialForm.nightNavigation => 'pm_empty_own_nav.pdf',
+        _ => 'pm_empty_adm_nav.pdf',
       };
       final f = File('${dir.path}\\$name');
       f.writeAsBytesSync(bytes);

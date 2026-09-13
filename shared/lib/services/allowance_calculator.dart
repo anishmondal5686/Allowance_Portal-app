@@ -890,7 +890,7 @@ class AllowanceCalculator {
             .map((d) => normDateKey(d))
             .where((k) =>
                 attShifts[k] == 'N' &&
-                movementsForMonth(data).any((m) => normDateKey(m.date) == k))
+                movementsForMonth(data).any((m) => movementShiftDate(m) == k))
             .length
         : 0;
     final actingHours = actingNCount * 8.0;

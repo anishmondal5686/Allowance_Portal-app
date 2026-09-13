@@ -273,4 +273,58 @@ void main() {
     expect(find.textContaining('Night Act'), findsNothing);
     expect(find.textContaining('Cold'), findsNothing);
   });
+
+  testWidgets('post-midnight movement on an acting-ADM night shift is treated '
+      'as ADM duty: register and edit dialog hide Night Act/Cold',
+      (tester) async {
+    final data = ClaimData(
+      master: MasterData(
+        month: 'JULY, 2026',
+        designation: 'Berthing Pilot',
+      ),
+      actingAdmDates: ['2026-7-12'],
+    );
+    data.movements.add(Movement(
+        date: '13/07/26',
+        vessel: 'MV ACT PM',
+        from: 'LOCK',
+        to: 'BASIN',
+        start: '00:45',
+        end: '01:45',
+        loa: '229',
+        beam: '32',
+        allowances: ['length', 'nightact', 'navigation'],
+        navigationTypes: ['inward-210']));
+    await tester.pumpWidget(MaterialApp(
+      home: MovementScreen(
+        key: UniqueKey(),
+        claimData: data,
+        onChanged: () {},
+      ),
+    ));
+
+    expect(find.textContaining('Length'), findsWidgets);
+    expect(find.textContaining('Night Nav'), findsWidgets);
+    expect(find.textContaining('Night Act'), findsNothing);
+    expect(find.textContaining('Cold'), findsNothing);
+
+    await tester.drag(find.byType(Slidable), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(Form);
+    expect(
+        find.descendant(of: dialog, matching: find.text('Length')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: dialog, matching: find.text('Night Nav')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: dialog, matching: find.text('Cold Move')),
+        findsNothing);
+    expect(
+        find.descendant(of: dialog, matching: find.text('Night Act')),
+        findsNothing);
+  });
 }

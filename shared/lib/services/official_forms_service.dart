@@ -410,8 +410,8 @@ class OfficialFormsService {
       w.add(_txt(f, _monthLabel(m.month), 77.2, 108.0, 9.5, bold: true));
       w.add(_txt(f, 'Name:', 217.6, 106.0, 8.25, bold: true));
       w.add(_txt(f, m.name, 247.5, 106.0, 9.5, bold: true));
-      w.add(_txt(f, 'Dsgn.:', 389.9, 106.0, 8.25, bold: true));
-      w.add(_txt(f, m.designation, 420.0, 106.0, 9.5, bold: true));
+      w.add(_txt(f, 'Dsgn.:', 356.9, 106.0, 8.25, bold: true));
+      w.add(_txt(f, m.designation, 387.0, 106.0, 9.5, bold: true));
       w.add(_txt(
           f,
           m.isBerthingPilot ? 'Consolidated Pay:' : 'Pay Rs.:',
@@ -422,10 +422,10 @@ class OfficialFormsService {
       w.add(_txt(f, m.payLine, 121.5, 129.0, 9.5, bold: true));
       w.add(_txt(f, 'Bill Abst no:', 217.6, 127.0, 8.25, bold: true));
       w.add(_txt(f, m.bill, 270.7, 127.0, 9.5, bold: true));
-      w.add(_txt(f, 'Emp I.D:', 389.9, 127.0, 8.25, bold: true));
-      w.add(_txt(f, m.employee, 427.5, 127.0, 9.5, bold: true));
-      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 127.0, 8.25, bold: true));
-      w.add(_txt(f, m.sapEmployeeId, 540.0, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'Emp I.D:', 356.9, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.employee, 394.5, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 449.0, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 507.0, 127.0, 9.5, bold: true));
       w.add(_txt(
           f,
           '(1) LENGTH ALLOWANCE ( Code - 077 )'
@@ -569,8 +569,8 @@ class OfficialFormsService {
       w.add(_txt(f, _monthLabel(m.month), 77.2, 108.0, 9.5, bold: true));
       w.add(_txt(f, 'Name:', 217.6, 106.0, 8.25, bold: true));
       w.add(_txt(f, m.name, 247.5, 106.0, 9.5, bold: true));
-      w.add(_txt(f, 'Dsgn.:', 389.9, 106.0, 8.25, bold: true));
-      w.add(_txt(f, _admDutyDsgn(m), 420.0, 106.0, 9.5, bold: true));
+      w.add(_txt(f, 'Dsgn.:', 356.9, 106.0, 8.25, bold: true));
+      w.add(_txt(f, _admDutyDsgn(m), 387.0, 106.0, 9.5, bold: true));
       w.add(_txt(
           f,
           m.isBerthingPilot ? 'Consolidated Pay:' : 'Pay Rs.:',
@@ -581,10 +581,10 @@ class OfficialFormsService {
       w.add(_txt(f, m.payLine, 121.5, 129.0, 9.5, bold: true));
       w.add(_txt(f, 'Bill Abst no:', 217.6, 127.0, 8.25, bold: true));
       w.add(_txt(f, m.bill, 270.7, 127.0, 9.5, bold: true));
-      w.add(_txt(f, 'Emp I.D:', 389.9, 127.0, 8.25, bold: true));
-      w.add(_txt(f, m.employee, 427.5, 127.0, 9.5, bold: true));
-      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 127.0, 8.25, bold: true));
-      w.add(_txt(f, m.sapEmployeeId, 540.0, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'Emp I.D:', 356.9, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.employee, 394.5, 127.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 449.0, 127.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 507.0, 127.0, 9.5, bold: true));
       w.add(_txt(
           f,
           '(1) LENGTH ALLOWANCE ( Code - 077 )'
@@ -750,8 +750,8 @@ class OfficialFormsService {
       w.add(_txt(f, _monthLabel(m.month), 95.2, 108.0, 9.5, bold: true));
       w.add(_txt(f, 'Name:', 209.6, 108.0, 8.25, bold: true));
       w.add(_txt(f, m.name, 239.2, 108.0, 9.5, bold: true));
-      w.add(_txt(f, 'Designation:', 396.4, 108.0, 8.25, bold: true));
-      w.add(_txt(f, m.designation, 450.8, 108.0, 9.5, bold: true));
+      w.add(_txt(f, 'Designation:', 363.4, 108.0, 8.25, bold: true));
+      w.add(_txt(f, m.designation, 417.8, 108.0, 9.5, bold: true));
       w.add(_txt(
           f,
           m.isBerthingPilot ? 'Consolidated Pay Rs.:' : 'Pay Rs.:',
@@ -762,10 +762,10 @@ class OfficialFormsService {
       w.add(_txt(f, m.payLine, 114.0, 129.0, 9.5, bold: true));
       w.add(_txt(f, 'Bill Abst. No.:', 209.6, 129.0, 8.25, bold: true));
       w.add(_txt(f, m.bill, 267.7, 129.0, 9.5, bold: true));
-      w.add(_txt(f, 'Emp I.D :', 396.4, 129.0, 8.25, bold: true));
-      w.add(_txt(f, m.employee, 436.5, 129.0, 9.5, bold: true));
-      w.add(_txt(f, 'SAP Emp. ID:', 482.0, 129.0, 8.25, bold: true));
-      w.add(_txt(f, m.sapEmployeeId, 540.0, 129.0, 9.5, bold: true));
+      w.add(_txt(f, 'Emp I.D :', 363.4, 129.0, 8.25, bold: true));
+      w.add(_txt(f, m.employee, 403.5, 129.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Emp. ID:', 449.0, 129.0, 8.25, bold: true));
+      w.add(_txt(f, m.sapEmployeeId, 507.0, 129.0, 9.5, bold: true));
       w.add(_txt(f, '(1) NIGHT ACT ALLOWANCE (Code - 082)', 213.3, 145.9, 8.62,
           bold: true));
       w.addAll(_grid(_naRows, _naXs, gray: true, grayRows: 1));
@@ -880,16 +880,16 @@ class OfficialFormsService {
 
   static const _nwAdmRows = [
     218.0, 236.0, 253.4, 270.8, 288.2, 305.6, 323.0, 340.4, 357.8, 375.2,
-    392.6,
+    392.6, 410.0, 427.4, 444.8, 462.2, 479.6, 497.0,
   ];
 
   static Future<Uint8List> _buildNightWeightageAdm(ClaimData data, _Fonts f) {
     final doc = pw.Document();
     final gaps = _nightWeightageGaps(data, admDuty: true);
-    final pages = math.max(1, (gaps.length / 10).ceil());
+    final pages = math.max(1, (gaps.length / 15).ceil());
     final m = data.master;
     for (var p = 0; p < pages; p++) {
-      final gChunk = gaps.skip(p * 10).take(10).toList();
+      final gChunk = gaps.skip(p * 15).take(15).toList();
       final totalMins = gChunk.fold<int>(0, (s, g) => s + (g.e - g.s));
       final totalHrs = totalMins == 0 ? '' : (totalMins / 60).toStringAsFixed(2);
       final days = totalMins == 0 ? '' : (totalMins / 60 / 48).toStringAsFixed(2);
@@ -905,15 +905,25 @@ class OfficialFormsService {
       w.add(_txt(f, 'MARINE OFFICE HALDIA', 262.2, 71.4, 9.0, bold: true));
       w.add(_txt(f, 'Dated:', 440.9, 73.0, 9.0, bold: true));
       w.add(_hLine(472.0, 560.0, 84.0));
+      const nwClaimTitle =
+          'Claim form for the payment for Night Weightage Allowances';
       w.add(_txt(
           f,
-          'Claim form for the payment for Night Weightage Allowances',
-          112.4,
+          nwClaimTitle,
+          _cx([22.5, 572.2], nwClaimTitle, 9.38, bold: true),
           88.0,
           9.38,
           bold: true));
-      w.add(_txt(f, 'For the Month of:', 22.7, 110.0, 8.25, bold: true));
-      w.add(_txt(f, _monthLabel(m.month), 95.2, 110.0, 9.5, bold: true));
+      const nwMonLabel = 'For the Month of:';
+      final nwMonVal = _monthLabel(m.month);
+      const nwMonGap = 6.0;
+      final nwMonW = _est(nwMonLabel, 8.25, bold: true) +
+          nwMonGap +
+          _est(nwMonVal, 9.5, bold: true);
+      final nwMonX = 297.35 - nwMonW / 2;
+      w.add(_txt(f, nwMonLabel, nwMonX, 110.0, 8.25, bold: true));
+      w.add(_txt(f, nwMonVal, nwMonX + _est(nwMonLabel, 8.25, bold: true) + nwMonGap,
+          110.0, 9.5, bold: true));
       w.add(_txt(f, 'Name :', 22.7, 132.0, 8.25, bold: true));
       w.add(_txt(f, m.name, 58.0, 132.0, 9.5, bold: true));
       w.add(_txt(f, 'Designation :', 311.2, 132.0, 8.25, bold: true));
@@ -954,10 +964,10 @@ class OfficialFormsService {
       for (final l in hl) {
         w.add(_txt(f, l.t, l.x, l.y, 7.5, bold: true));
       }
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < 15; i++) {
         final g = i < gChunk.length ? gChunk[i] : null;
         final y = 236.0 + i * 17.4;
-        w.add(_cell(f, g == null ? '' : '${p * 10 + i + 1}', _nwCols[0], y, 7.88));
+        w.add(_cell(f, g == null ? '' : '${p * 15 + i + 1}', _nwCols[0], y, 7.88));
         w.add(_cell(f, g?.date ?? '', _nwCols[1], y, 7.88));
         w.add(
             _cell(f, g == null ? '' : 'NIGHT', _nwCols[2], y, 8.25, bold: true));
@@ -969,22 +979,22 @@ class OfficialFormsService {
             8.25,
             bold: true));
       }
-      w.add(_txt(f, 'Total Time', 445.9, 412.0, 8.25, bold: true));
+      w.add(_txt(f, 'Total Time', 445.9, 516.4, 8.25, bold: true));
       w.add(_txt(
           f,
           totalHrs,
           _cx([498.0, 554.0], totalHrs, 8.25, bold: true),
-          412.0,
+          516.4,
           8.25,
           bold: true));
-      w.add(_txt(f, 'hrs.', 554.7, 412.0, 8.25, bold: true));
+      w.add(_txt(f, 'hrs.', 554.7, 516.4, 8.25, bold: true));
       w.add(_txt(
           f, 'Time for Night weightage : $totalHrs Hours / 48 = $days Days.',
-          22.7, 428.0, 8.25));
+          22.7, 532.4, 8.25));
       final wAmt = _weightageAmount(totalMins.toDouble(), m);
       if (wAmt > 0) {
         w.add(_totalClaimLine(f, ['Rs. ${wAmt.round()} (N/W)'], wAmt,
-            const [22.7, 572.2], 455));
+            const [22.7, 572.2], 560));
       }
       w.add(_txt(f, 'The Manager ( P & IR )', 22.7, 710.0, 8.25));
       w.add(_txt(f, 'Forwarded for necessary action.', 22.7, 724.0, 8.25));
@@ -1677,17 +1687,36 @@ class OfficialFormsService {
       w.add(_hLine(524.0, 555.5, 90.0));
       w.addAll(_grid([16.0, 36.0], [445.0, 555.5]));
       w.add(_cell(f, 'Code No. 44060025', [445.0, 555.5], 26, 8.5, bold: true));
+      const navClaimTitle =
+          'CLAIM FORM FOR THE PAYMENT OF NIGHT NAVIGATION ALLOWANCE';
       w.add(_txt(
           f,
-          'CLAIM FORM FOR THE PAYMENT OF NIGHT NAVIGATION ALLOWANCE',
-          109.0,
+          navClaimTitle,
+          128.1,
           98,
           10.0,
           bold: true));
-      w.add(_txt(f, 'For the Month of', 39.8, 128, 9.0, bold: true));
-      w.add(_txt(f, monthName, 118.0, 128, 11.5, bold: true));
-      w.add(_txt(f, '20', 210.0, 128, 9.0, bold: true));
-      w.add(_txt(f, year, 225.0, 128, 11.5, bold: true));
+      const navMonLabel = 'For the Month of';
+      final navMonVal = monthName;
+      const navMonGap = 4.0;
+      final navMonW = _est(navMonLabel, 9.0, bold: true) +
+          navMonGap +
+          _est(navMonVal, 11.5, bold: true) +
+          navMonGap +
+          _est('20', 9.0, bold: true) +
+          navMonGap +
+          _est(year, 11.5, bold: true);
+      final navMonX = 297.35 - navMonW / 2;
+      final navLbl = navMonX;
+      w.add(_txt(f, navMonLabel, navLbl, 128, 9.0, bold: true));
+      final navVal =
+          navMonX + _est(navMonLabel, 9.0, bold: true) + navMonGap;
+      w.add(_txt(f, monthName, navVal, 128, 11.5, bold: true));
+      final nav20 =
+          navVal + _est(navMonVal, 11.5, bold: true) + navMonGap;
+      w.add(_txt(f, '20', nav20, 128, 9.0, bold: true));
+      w.add(_txt(f, year, nav20 + _est('20', 9.0, bold: true) + navMonGap, 128,
+          11.5, bold: true));
       w.add(_txt(f, 'Name:', 39.8, 150, 9.0, bold: true));
       w.add(_txt(f, m.name, 72.8, 150, 11.5, bold: true));
       w.add(_txt(f, 'Designation:', 311.2, 150, 9.0, bold: true));

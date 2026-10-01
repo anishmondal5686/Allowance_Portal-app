@@ -708,6 +708,84 @@ void main() {
       expect(filtered.map((m) => m.date), ['15/09/26', '16/09/26']);
     });
 
+    Movement night(String date, String start, {String end = '05:00'}) =>
+        Movement(
+            date: date,
+            vessel: 'NIGHT',
+            from: 'LOCK',
+            to: 'B2',
+            start: start,
+            end: end,
+            loa: '199.9',
+            beam: '32.2',
+            allowance: 'nightact');
+
+    test(
+        'movementsForMonth keeps a post-midnight movement with its own night '
+        'shift', () {
+      final data = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
+      data.movements.add(night('01/10/26', '03:02'));
+      final filtered = AllowanceCalculator.movementsForMonth(data);
+      expect(filtered.length, 1);
+      expect(AllowanceCalculator.movementShiftDate(filtered.single),
+          '2026-9-30');
+    });
+
+    test('movementsForMonth excludes a next-month daytime movement', () {
+      final data = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
+      data.movements.add(night('01/10/26', '08:00', end: '10:00'));
+      expect(AllowanceCalculator.movementsForMonth(data), isEmpty);
+    });
+
+    // Regression: the save guard derives the owning month from a full unpadded
+    // date key ('2026-9-30'). parseMonthYear only understands 2-part keys and
+    // returned null, so shiftMonthKey was '' and every save was rejected.
+    test('parseDateKeyMonth resolves the owning month of a post-midnight '
+        'movement', () {
+      final mv = night('01/10/26', '03:02');
+      final shiftKey = AllowanceCalculator.normDateKey(
+          AllowanceCalculator.movementShiftDate(mv));
+      expect(shiftKey, '2026-9-30');
+
+      final parsed = MasterData.parseDateKeyMonth(shiftKey);
+      expect(parsed, isNotNull);
+      expect(MasterData.monthKey(parsed!.$1, parsed.$2), '2026-09');
+
+      // Guard condition: same owning month => the save must NOT be blocked.
+      const claimKey = '2026-09';
+      final shiftMonthKey = MasterData.monthKey(parsed.$1, parsed.$2);
+      expect(shiftKey.isNotEmpty && shiftMonthKey != claimKey, isFalse);
+
+      // And an October claim must block it.
+      const octKey = '2026-10';
+      expect(shiftKey.isNotEmpty && shiftMonthKey != octKey, isTrue);
+    });
+
+    test('parseDateKeyMonth rejects non-date and out-of-range keys', () {
+      expect(MasterData.parseDateKeyMonth(''), isNull);
+      expect(MasterData.parseDateKeyMonth('2026-09'), isNull);
+      expect(MasterData.parseDateKeyMonth('not-a-date'), isNull);
+      expect(MasterData.parseDateKeyMonth('2026-13-01'), isNull);
+      expect(MasterData.parseDateKeyMonth('2026-9-99'), isNull);
+    });
+
+    test('a post-midnight movement keeps its own night in the previous month',
+        () {
+      // Mirror case: 01/09 03:00 belongs to the 31/08 night shift, so it must
+      // stay in the August claim rather than leaking into September.
+      final data = ClaimData(master: MasterData(month: 'AUGUST, 2026'));
+      data.movements.add(night('01/09/26', '03:00'));
+      final filtered = AllowanceCalculator.movementsForMonth(data);
+      expect(filtered.length, 1);
+      expect(AllowanceCalculator.movementShiftDate(filtered.single),
+          '2026-8-31');
+
+      final sept = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'))
+        ..movements.add(night('01/09/26', '03:00'));
+      expect(AllowanceCalculator.movementsForMonth(sept).map((m) => m.date),
+          ['01/09/26']);
+    });
+
     test('movementsForMonth returns everything when month is blank', () {
       final data = ClaimData(master: MasterData(month: ''));
       data.movements
@@ -736,6 +814,38 @@ void main() {
       final sorted = AllowanceCalculator.movementsForMonth(data);
       expect(sorted.map((m) => m.vessel),
           ['AFTER-MIDNIGHT', 'MID', 'LATE', 'NEXT-DAY', 'NEWEST-DAY']);
+    });
+
+    test(
+        'acting ADM full-8h credit restored for a post-midnight movement',
+        () {
+      final data = ClaimData(
+          master: MasterData(
+              month: 'SEPTEMBER, 2026',
+              designation: 'DOCK PILOT',
+              pay: '50000',
+              basic: '30000',
+              ada: '20000'),
+          attOffDay: '',
+          attRotation: '',
+          attShifts: const {'2026-9-30': 'N'},
+          actingAdmDates: const ['2026-9-30']);
+      data.movements.add(Movement(
+          date: '01/10/26',
+          vessel: 'LOCK RUN',
+          from: 'LOCK',
+          to: 'APP. JETTY',
+          start: '03:02',
+          end: '05:00',
+          loa: '180',
+          allowance: 'lock'));
+      final sheet = AllowanceCalculator.calcSheet(data);
+      expect(sheet.hasActing, isTrue);
+      final actingLock = sheet.actingRows.firstWhere(
+          (r) => r.category == 'Lock to App. Jetty & vice versa');
+      expect(actingLock.amount, 1500);
+      expect(sheet.actingWeightageHours, 8.0);
+      expect(sheet.baseWeightageHours, 0.0);
     });
 
     test('attShiftsForMonth keeps only shifts within the master month', () {

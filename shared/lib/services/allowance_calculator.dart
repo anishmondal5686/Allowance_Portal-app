@@ -483,7 +483,13 @@ class AllowanceCalculator {
     return (hours / 1440.0) * pay;
   }
 
-  /// Movements whose date falls within the claim month (master.month).
+  /// Movements belonging to the claim month (master.month). A movement counts
+  /// when either its own date or its night-shift date (see [movementShiftDate])
+  /// falls in the month, so a movement starting after midnight on the 1st of
+  /// the next month - e.g. 03:02 on 01/10 for the 30/09 night shift - stays with
+  /// its own night instead of being pushed into the following month's claim.
+  /// The raw-date branch keeps any already-stored or imported out-of-month
+  /// movement visible and deletable rather than hiding it.
   /// Returns all movements when the month can't be parsed (e.g. empty).
   static List<Movement> movementsForMonth(ClaimData data) {
     final parsed = MasterData.parseMonthYear(data.master.month);
@@ -492,12 +498,17 @@ class AllowanceCalculator {
       out = data.movements.toList();
     } else {
       final (y, mo) = parsed;
-      out = data.movements.where((m) {
-        final p = normDateKey(m.date.trim()).split('-');
+      bool inMonth(String key) {
+        final p = key.split('-');
         if (p.length != 3) return false;
-        final my = int.tryParse(p[0]);
-        final mm = int.tryParse(p[1]);
-        return my == y && mm == mo;
+        final ky = int.tryParse(p[0]);
+        final km = int.tryParse(p[1]);
+        return ky == y && km == mo;
+      }
+      out = data.movements.where((m) {
+        final rawKey = normDateKey(m.date.trim());
+        final shiftKey = movementShiftDate(m);
+        return inMonth(rawKey) || inMonth(shiftKey);
       }).toList();
     }
     out.sort((a, b) {

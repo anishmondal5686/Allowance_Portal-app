@@ -132,6 +132,22 @@ class MasterData {
   static String monthLabel(int year, int month) =>
       '${monthNames[month - 1]}, $year';
 
+  /// Parses a 3-part unpadded date key such as '2026-9-30' into (year, month).
+  ///
+  /// Unlike [parseMonthYear], this accepts a full date key, so it is the correct
+  /// helper for deriving the owning month of a night shift. Returns null when
+  /// [dateKey] is not a numeric 'yyyy-m-d' key.
+  static (int, int)? parseDateKeyMonth(String dateKey) {
+    final parts = dateKey.trim().split('-');
+    if (parts.length != 3) return null;
+    final y = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final d = int.tryParse(parts[2]);
+    if (y == null || m == null || d == null) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return (y, m);
+  }
+
   /// Friendly label from any supported month string, e.g. 'SEPTEMBER, 2026'.
   /// Returns the trimmed input when it can't be parsed.
   static String displayMonth(String month) {

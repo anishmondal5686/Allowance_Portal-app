@@ -48,6 +48,14 @@ Run analyze + tests across all 3 packages:
 
 Use the project `/verify` command.
 
+## Dependency Pins (verified blockers — do NOT bump without testing)
+- `flutter_form_builder` `^10.2.0` (11.x pulls `material_ui`/`cupertino_ui`, breaks `InputDecoration` types).
+- `pdfx` `>=2.9.2 <2.11.0` (2.11.0 breaks Android build — plugin class renamed; `GeneratedPluginRegistrant` references the missing `io.scer.pdfx.PdfxPlugin`).
+- `share_plus` `12.0.0` exact in all 3 pubspecs: **13.x broken on Android builds** — 13.3.0 fails `:share_plus:compileDebugKotlin` (unresolved `SharePlusPendingIntent`, regression from #3931) and 13.2.1 fails `:app:compileDebugJavaWithJavac` (`SharePlusPlugin` never compiled into app classpath).
+- `file_picker` `11.0.3` exact: **13.1.0 needs `windows_file_picker 2.0.0` → `win32 ^6.3.0`, incompatible with `share_plus 12`'s `win32 ^5.5.3`, AND a `win32: ^6.4.0` override breaks `share_plus 12`'s Dart (`wReserved` getter removed from `OSVERSIONINFOEX`)**. Cannot coexist — keep both pinned; `pubspec.lock` is gitignored so `pub upgrade` does not show a conflict.
+- v1-only google stack caret-constrained (`google_sign_in ^6.2.2`, `googleapis ^13.2.0`, `googleapis_auth ^1.6.0`); majors 7.2.0/17.0.0/2.3.4 need deliberate emulator testing (v1 Drive sync is personal-critical).
+- Safe to upgrade via `flutter pub upgrade` (verified on Flutter 3.47.5): pdf, printing, image, mime, archive, dbus — analyzed + full test suites green after.
+
 ## Gotchas
 - Devanagari UTF-8: PowerShell `Get-Content` misreads Devanagari bytes as ANSI. Read via `[System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes(<path>))`, or the Read tool.
 - Emulator UI: dismiss keyboard (`adb shell input keyevent 4`) before tapping buttons; taps can otherwise land on keyboard keys.

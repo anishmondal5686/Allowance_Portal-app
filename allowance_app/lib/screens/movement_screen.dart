@@ -909,7 +909,41 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
                   child: FilledButton.icon(
                     onPressed: () {
                       if (!_formKey.currentState!.validate()) return;
-                      Navigator.pop(context, _buildMovement());
+                      final movement = _buildMovement();
+                      final claimKey =
+                          MasterData.monthKey(widget.year, widget.month);
+                      final shiftKey = AllowanceCalculator.normDateKey(
+                          AllowanceCalculator.movementShiftDate(movement));
+                      final parsedShift =
+                          MasterData.parseDateKeyMonth(shiftKey);
+                      final shiftMonthKey = parsedShift == null
+                          ? ''
+                          : MasterData.monthKey(parsedShift.$1, parsedShift.$2);
+                      if (shiftKey.isNotEmpty && shiftMonthKey != claimKey) {
+                        final shiftParts = shiftKey.split('-');
+                        final shiftLabel =
+                            shiftParts.length == 3 && parsedShift != null
+                                ? _dateFmt.format(DateTime(
+                                    parsedShift.$1,
+                                    parsedShift.$2,
+                                    int.parse(shiftParts[2]),
+                                  ))
+                                : movement.date;
+                        final ownerLabel = parsedShift == null
+                            ? shiftLabel
+                            : MasterData.monthLabel(
+                                parsedShift.$1, parsedShift.$2);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(
+                            'A movement starting ${movement.start} on '
+                            '${movement.date} belongs to the night shift of '
+                            '$shiftLabel - open $ownerLabel to enter it.',
+                          ),
+                          duration: const Duration(seconds: 5),
+                        ));
+                        return;
+                      }
+                      Navigator.pop(context, movement);
                     },
                     icon: const Icon(Icons.check, size: 18),
                     label: const Text('Save Movement'),
@@ -965,7 +999,10 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
   }
 
   Widget _buildDateField() {
-    final lastDay = DateTime(widget.year, widget.month + 1, 0).day;
+    // A night shift runs 22:00 to 06:00, so the last night of this claim month
+    // can have a movement that starts after midnight on the 1st of the next
+    // month (e.g. 03:02 on 01/10 belongs to the 30/09 night shift).
+    final lastDate = DateTime(widget.year, widget.month + 1, 1);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -974,7 +1011,7 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
             context: context,
             initialDate: _selectedDate,
             firstDate: DateTime(widget.year, widget.month, 1),
-            lastDate: DateTime(widget.year, widget.month, lastDay),
+            lastDate: lastDate,
           );
           if (picked != null) {
             setState(() {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -77,6 +78,90 @@ void main() {
     test('falls back to claim when month is blank', () {
       expect(OfficialFormsService.pdfFileName(OfficialForm.lengthAndCold, '  '),
           'Length_Cold_Allowance_claim.pdf');
+    });
+  });
+
+  group('night-shift date range in movement rows', () {
+    Movement mv(String date, String start) => Movement(
+          date: date,
+          vessel: 'MV X',
+          from: 'OFF',
+          to: 'B2',
+          start: start,
+          end: '04:40',
+          loa: '180',
+          beam: '32',
+          allowance: 'length',
+        );
+
+    ClaimData withMovement(Movement m) {
+      final d = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
+      d.attShifts['2026-09-30'] = 'N';
+      d.movements.add(m);
+      return d;
+    }
+
+    // Writes the PDF to the temp dump dir so the rendered date text can be
+    // inspected with PyMuPDF (see verify step); Dart cannot read PDF text.
+    void dump(String name, Uint8List bytes) {
+      final dir =
+          Directory(r'C:\Users\way2m\AppData\Local\Temp\opencode\rowdate');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      File('${dir.path}\\$name').writeAsBytesSync(bytes);
+    }
+
+    Future<void> buildAndDump(OfficialForm form, ClaimData data, String name) async {
+      final bytes = await OfficialFormsService.buildFormPdf(form, data);
+      expect(bytes.length, greaterThan(500), reason: name);
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-', reason: name);
+      dump(name, bytes);
+    }
+
+    test('cross-month post-midnight movement dumps a date range', () async {
+      final data = withMovement(mv('01/10/2026', '03:02'));
+      await buildAndDump(
+          OfficialForm.lengthAndCold, data, 'cross_month.pdf');
+    });
+
+    test('same-day movement dumps its raw date unchanged', () async {
+      final data = withMovement(mv('14/09/2026', '06:00'));
+      await buildAndDump(
+          OfficialForm.lengthAndCold, data, 'same_day.pdf');
+    });
+
+    test('mid-month pre-dawn movement dumps its raw date unchanged',
+        () async {
+      // 14/09 start 0302 -> shift date 13/09, same calendar month, so the
+      // range must NOT be shown.
+      final data = withMovement(mv('14/09/2026', '03:02'));
+      await buildAndDump(
+          OfficialForm.lengthAndCold, data, 'mid_month_predawn.pdf');
+    });
+
+    test('year-boundary movement dumps both years', () async {
+      // A 01/01/2027 movement at 03:02 belongs to the December claim
+      // (night shift of 31/12/2026), so the claim month must be December
+      // for the row to be rendered at all.
+      final data = ClaimData(master: MasterData(month: 'DECEMBER, 2026'));
+      data.attShifts['2026-12-31'] = 'N';
+      data.movements.add(mv('01/01/2027', '03:02'));
+      await buildAndDump(
+          OfficialForm.lengthAndCold, data, 'year_boundary.pdf');
+    });
+
+    test('all four movement forms build with a cross-month movement',
+        () async {
+      final data = withMovement(mv('01/10/2026', '03:02'));
+      for (final form in [
+        OfficialForm.lengthAndCold,
+        OfficialForm.lengthAllowance,
+        OfficialForm.nightActWeightage,
+        OfficialForm.lockToApproachJetty,
+      ]) {
+        final bytes = await OfficialFormsService.buildFormPdf(form, data);
+        expect(bytes.length, greaterThan(500), reason: form.name);
+        expect(String.fromCharCodes(bytes.take(5)), '%PDF-', reason: form.name);
+      }
     });
   });
 

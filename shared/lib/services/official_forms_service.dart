@@ -303,6 +303,55 @@ class OfficialFormsService {
     return _txt(f, s, _cx(cell, s, size, bold: bold), y, size, bold: bold);
   }
 
+  static ({String text, double size}) _rowDate(
+      Movement m, Map<String, String> attShifts, double size, List<double> cell) {
+    final raw = m.date.trim();
+    final rawDk = raw.isEmpty ? '' : AllowanceCalculator.normDateKey(raw);
+    if (rawDk.isEmpty) return (text: raw, size: size);
+    final shiftDk =
+        AllowanceCalculator.movementShiftDate(m, attShifts: attShifts);
+    if (shiftDk == rawDk) return (text: raw, size: size);
+
+    // normDateKey emits unpadded parts (e.g. '2026-9-1'), so parse by
+    // splitting on '-' rather than assuming fixed-width segments.
+    DateTime? parseKey(String dk) {
+      final p = dk.split('-');
+      if (p.length != 3) return null;
+      final y = int.tryParse(p[0]);
+      final mo = int.tryParse(p[1]);
+      final d = int.tryParse(p[2]);
+      if (y == null || mo == null || d == null) return null;
+      if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+      return DateTime(y, mo, d);
+    }
+
+    final rDt = parseKey(rawDk);
+    final sDt = parseKey(shiftDk);
+    if (rDt == null || sDt == null) return (text: raw, size: size);
+    // Only annotate when the night shift belongs to a different
+    // calendar month/year than the movement's own date.
+    if (rDt.month == sDt.month && rDt.year == sDt.year) {
+      return (text: raw, size: size);
+    }
+    String dd(DateTime d) => '${d.day}'.padLeft(2, '0');
+    String mm(DateTime d) => '${d.month}'.padLeft(2, '0');
+    String yy(DateTime d) => '${d.year}'.substring(2);
+    final sameYear = sDt.year == rDt.year;
+    final text = sameYear
+        ? '${dd(sDt)}/${mm(sDt)}-${dd(rDt)}/${mm(rDt)}/${yy(rDt)}'
+        : '${dd(sDt)}/${mm(sDt)}/${yy(sDt)}-${dd(rDt)}/${mm(rDt)}/${yy(rDt)}';
+    // A year-boundary range is the widest string; shrink only that one date
+    // cell (never the rest of the row) until it fits. _est under-reports
+    // real glyph widths by ~5%, so target 90% of the column width to
+    // leave the centred text clear of both rules.
+    var out = size;
+    final avail = (cell[1] - cell[0]) * 0.9;
+    while (out > 5.0 && _est(text, out) > avail) {
+      out -= 0.25;
+    }
+    return (text: text, size: out);
+  }
+
   static pw.Widget _page(List<pw.Widget> children) =>
       pw.Stack(children: children);
 
@@ -442,7 +491,9 @@ class OfficialFormsService {
         final mv = i < lChunk.length ? lChunk[i] : null;
         final y = 180.8 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 20 + i + 1}', _lcCols[0], y, 8.25));
-        w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
+        final rd =
+            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+        w.add(_cell(f, rd?.text ?? '', _lcCols[1], y, rd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
         w.add(_cell(f, mv?.loa ?? '', _lcCols[4], y, 8.25));
@@ -464,7 +515,9 @@ class OfficialFormsService {
         final mv = i < cChunk.length ? cChunk[i] : null;
         final y = 562.5 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 5 + i + 1}', _lcCols[0], y, 8.25));
-        w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
+        final cd =
+            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+        w.add(_cell(f, cd?.text ?? '', _lcCols[1], y, cd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
         w.add(_cell(f, mv?.loa ?? '', _lcCols[4], y, 8.25));
@@ -601,7 +654,9 @@ class OfficialFormsService {
         final mv = i < chunk.length ? chunk[i] : null;
         final y = 180.8 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 25 + i + 1}', _lcCols[0], y, 8.25));
-        w.add(_cell(f, mv?.date ?? '', _lcCols[1], y, 8.25));
+        final rd =
+            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+        w.add(_cell(f, rd?.text ?? '', _lcCols[1], y, rd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
         w.add(_cell(f, mv?.loa ?? '', _lcCols[4], y, 8.25));
@@ -776,7 +831,9 @@ class OfficialFormsService {
         final mv = i < aChunk.length ? aChunk[i] : null;
         final y = 180.4 + i * 17.3;
         w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}', _naCols[0], y, 7.88));
-        w.add(_cell(f, mv?.date ?? '', _naCols[1], y, 7.88));
+        final rd =
+            mv == null ? null : _rowDate(mv, data.attShifts, 7.88, _naCols[1]);
+        w.add(_cell(f, rd?.text ?? '', _naCols[1], y, rd?.size ?? 7.88));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _naCols[2], y, 7.88));
         w.add(_cell(f, mv?.vessel ?? '', _naCols[3], y, 7.88));
         w.add(_cell(f, mv?.loa ?? '', _naCols[4], y, 7.88));
@@ -1352,7 +1409,10 @@ class OfficialFormsService {
         final mv = i < chunk.length ? chunk[i] : null;
         final y = 312.4 + i * 24.0;
         w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}.', _lockCols[0], y, 8.62));
-        w.add(_cell(f, mv?.date ?? '', _lockCols[1], y, 8.62));
+        final rd = mv == null
+            ? null
+            : _rowDate(mv, data.attShifts, 8.62, _lockCols[1]);
+        w.add(_cell(f, rd?.text ?? '', _lockCols[1], y, rd?.size ?? 8.62));
         w.add(_cell(f, mv?.vessel ?? '', _lockCols[2], y, 8.62));
         w.add(_cell(f, mv?.start ?? '', _lockCols[3], y, 8.62));
         w.add(_cell(f, mv?.end ?? '', _lockCols[4], y, 8.62));

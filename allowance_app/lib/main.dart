@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_app/services/drive_service.dart';
@@ -19,7 +20,7 @@ class AllowanceApp extends StatefulWidget {
 }
 
 class _AllowanceAppState extends State<AllowanceApp> {
-  static const _appVersion = '2.0.35';
+  static const _appVersion = '2.0.36';
   final ClaimData _claimData = ClaimData();
   final DriveService _driveService = DriveService();
   final ThemeStore _themeStore = ThemeStore();
@@ -72,22 +73,31 @@ class _AllowanceAppState extends State<AllowanceApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Allowance Portal',
-      debugShowCheckedModeBanner: false,
-      themeAnimationDuration: Duration.zero,
-      theme: ModernThemeData.buildModern(_themeId),
-      home: _loading
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator()))
-          : DashboardScreen(
-              claimData: _claimData,
-              driveService: _driveService,
-              themeId: _themeId,
-              onThemeChanged: _onThemeChanged,
-              onDataChanged: _onDataChanged,
-              appVersion: _appVersion,
-            ),
+    // DynamicColorBuilder resolves the wallpaper palette on Android 12+ and
+    // hands back nulls elsewhere, where buildModern falls back to the seed.
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => MaterialApp(
+        title: 'Allowance Portal',
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        theme: ModernThemeData.buildModern(
+          _themeId,
+          dynamicScheme: _themeId.brightness == Brightness.dark
+              ? darkDynamic
+              : lightDynamic,
+        ),
+        home: _loading
+            ? const Scaffold(
+                body: Center(child: CircularProgressIndicator()))
+            : DashboardScreen(
+                claimData: _claimData,
+                driveService: _driveService,
+                themeId: _themeId,
+                onThemeChanged: _onThemeChanged,
+                onDataChanged: _onDataChanged,
+                appVersion: _appVersion,
+              ),
+      ),
     );
   }
 }

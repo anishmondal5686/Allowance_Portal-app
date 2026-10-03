@@ -54,6 +54,7 @@ Use the project `/verify` command.
 - `share_plus` `12.0.0` exact in all 3 pubspecs: **13.x broken on Android builds** — 13.3.0 fails `:share_plus:compileDebugKotlin` (unresolved `SharePlusPendingIntent`, regression from #3931) and 13.2.1 fails `:app:compileDebugJavaWithJavac` (`SharePlusPlugin` never compiled into app classpath).
 - `file_picker` `11.0.3` exact: **13.1.0 needs `windows_file_picker 2.0.0` → `win32 ^6.3.0`, incompatible with `share_plus 12`'s `win32 ^5.5.3`, AND a `win32: ^6.4.0` override breaks `share_plus 12`'s Dart (`wReserved` getter removed from `OSVERSIONINFOEX`)**. Cannot coexist — keep both pinned; `pubspec.lock` is gitignored so `pub upgrade` does not show a conflict.
 - v1-only google stack caret-constrained (`google_sign_in ^6.2.2`, `googleapis ^13.2.0`, `googleapis_auth ^1.6.0`); majors 7.2.0/17.0.0/2.3.4 need deliberate emulator testing (v1 Drive sync is personal-critical).
+- `dynamic_color` `^1.7.0` in both app pubspecs (resolves 1.9.0; 2.x is a different major and untested). Backs `ModernThemeId.modernDynamic` — `DynamicColorBuilder` in each `main.dart` feeds the wallpaper palette to `ModernThemeData.buildModern`, which falls back to the id's seed when the platform has none.
 - Safe to upgrade via `flutter pub upgrade` (verified on Flutter 3.47.5): pdf, printing, image, mime, archive, dbus — analyzed + full test suites green after.
 
 ## Gotchas
@@ -62,6 +63,8 @@ Use the project `/verify` command.
 - Spec doc: `C:\New folder\ADM ALLOWANCE NEW FORM.docx`.
 - Session notes: `C:\Users\way2m\AppData\Local\Temp\opencode\SESSION_SUMMARY.md` — update with completed work.
 - Git: root repo tracks all 3 packages (`shared`, `allowance_app`, `allowance_app_v2`). Always run tests before committing.
+- The dashboard is the app's **root route**. `PopScope(canPop: false)` does not stop Android back from closing the app: `maybePop` reports nothing to pop, so `handlePopRoute` falls through to `SystemNavigator.pop()` (see `binding.dart`). To guard the root route you must call `SystemNavigator.pop()` yourself after the user confirms — `Navigator.pop()` is a no-op there. Tests must assert on a recorded `SystemChannels.platform` `SystemNavigator.pop` call, not on route removal.
+- `FormBuilderState.value` is `{}` until `save()`/`saveAndValidate()` runs, so it cannot be used to diff a form against stored data. Unsaved-state tracking relies on `FormBuilder.onChanged` instead, with `_suppressDirty` around programmatic `patchValue`.
 
 ## Document & Binary Handling (.docx, .pdf)
 - Spec reference document: `C:\New folder\ADM ALLOWANCE NEW FORM.docx`.

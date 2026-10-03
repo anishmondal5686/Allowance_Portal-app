@@ -63,7 +63,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   late final LocalStore _localStore = widget.localStore ?? LocalStore();
   Set<String> _savedMonths = {};
-  late String _savedBaselineGlyph;
 
   static const _designationOptions = [
     ('BERTHING PILOT', Icons.directions_boat_outlined),
@@ -92,7 +91,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _sunDate = now;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForUpdate();
-      _savedBaselineGlyph = _currentEditGlyph();
     });
     _refreshSavedMonths();
   }
@@ -126,9 +124,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _saveMaster() {
+  /// Commits the master form to [claimData]. Returns false when validation
+  /// fails, in which case nothing was written and callers must not treat the
+  /// form as saved.
+  bool _saveMaster() {
     final formState = _formKey.currentState;
-    if (formState == null || !formState.saveAndValidate()) return;
+    if (formState == null || !formState.saveAndValidate()) return false;
     final values = formState.value;
     widget.claimData.master = MasterData(
       month: MasterData.monthKey(_selectedYear, _selectedMonth),
@@ -144,6 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     widget.onDataChanged();
     _refreshSavedMonths();
     _showSnack('Master data saved');
+    return true;
   }
 
   void _applyMaster(MasterData m) {
@@ -151,6 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _selectedYear = parsed?.$1 ?? DateTime.now().year;
     _selectedMonth = parsed?.$2 ?? DateTime.now().month;
     // FormBuilder fields will be updated via initialValue on rebuild
+    _suppressDirty = true;
     _formKey.currentState?.patchValue({
       'name': m.name,
       'designation': _normalizeDesignation(m.designation),
@@ -161,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'basic': m.basic,
       'ada': m.ada,
     });
+    _suppressDirty = false;
   }
 
   void _showSnack(String msg) {
@@ -189,30 +193,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// A serialization of the claim as it currently appears on screen, including
-  /// any uncommitted master-form edits. Comparing this to the last-persisted
-  /// glyph tells us whether the user has unsaved changes.
-  String _currentEditGlyph() {
-    final formState = _formKey.currentState;
-    formState?.save();
-    final values = formState?.value ?? {};
-    final data = widget.claimData.toJson();
-    data['master'] = {
-      'month': MasterData.monthKey(_selectedYear, _selectedMonth),
-      'name': (values['name'] as String?)?.trim().toUpperCase() ?? '',
-      'designation': values['designation'] as String? ?? '',
-      'employee': (values['employee'] as String?)?.trim() ?? '',
-      'sapEmployeeId': (values['sapEmployeeId'] as String?)?.trim() ?? '',
-      'pay': (values['pay'] as String?)?.trim() ?? '',
-      'bill': (values['bill'] as String?)?.trim() ?? '',
-      'basic': (values['basic'] as String?)?.trim() ?? '',
-      'ada': (values['ada'] as String?)?.trim() ?? '',
-    };
-    return jsonEncode(data);
+  /// True while the master form holds edits that have not been written to the
+  /// device. Movements, attendance and the claim summary all persist through
+  /// [DashboardScreen.onDataChanged] from their own screens, so the profile
+  /// fields are the only genuinely unsaved data on this screen.
+  ///
+  /// This is a plain flag rather than a serialization comparison because
+  /// `PopScope.canPop` is evaluated during build, and the glyph-based check
+  /// this replaced called `FormState.save()` from that path, which triggers
+  /// validation mid-build.
+  bool _dirty = false;
+
+  /// Set while patching form fields programmatically so the resulting
+  /// `FormBuilder.onChanged` is not counted as a user edit.
+  bool _suppressDirty = false;
+
+  void _markDirty() {
+    if (_suppressDirty || _dirty) return;
+    setState(() => _dirty = true);
   }
 
-  bool get _hasUnsavedChanges =>
-      _currentEditGlyph() != _savedBaselineGlyph;
+  /// Call after the form has been repopulated from a freshly loaded claim, or
+  /// after the master form has actually been written out, so whatever is on
+  /// screen is by definition what is stored.
+  void _markClean() {
+    if (!_dirty) return;
+    setState(() => _dirty = false);
+  }
+
+  /// Intercepts a back gesture or system back while the master form has
+  /// uncommitted edits. Reuses the same three-way dialog as the month
+  /// switcher: null cancels, false discards, true saves first.
+  ///
+  /// The dashboard is the root route, so `Navigator.pop()` cannot dismiss it:
+  /// `maybePop` reports that nothing was popped and `handlePopRoute` falls
+  /// straight through to `SystemNavigator.pop()`, which would exit the app and
+  /// skip this prompt entirely. Leaving therefore has to be requested
+  /// explicitly once the user has confirmed.
+  Future<void> _confirmExit() async {
+    if (_dirty) {
+      final save = await _confirmDiscardChanges();
+      if (!mounted) return;
+      if (save == null) return;
+      if (save) _saveLocal();
+    }
+    await SystemNavigator.pop();
+  }
 
   /// Result of the unsaved-changes confirmation dialog: true = explicit save,
   /// false = discard and continue. Returns null if the user cancelled.
@@ -243,23 +269,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _saveLocal() {
-    _saveMaster();
-    _savedBaselineGlyph = _currentEditGlyph();
+    if (_saveMaster()) _markClean();
     _showSnack('Saved to this device');
   }
 
-  void _openSummary() {
-    _saveMaster();
-    Navigator.push(
+  /// Pushes a child screen. It deliberately leaves [dirty] alone: the Movements
+  /// and Attendance screens persist their own data but never commit the master
+  /// form, so a pending master edit is still pending on return. This is what
+  /// keeps the flag honest — the previous implementation compared a
+  /// serialization of the whole claim against a baseline captured at build
+  /// time, which went stale as soon as a child screen saved anything and made
+  /// back and the month switcher prompt about work that was already stored.
+  Future<void> _pushChild(Widget screen) {
+    return Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ClaimSummaryScreen(
-          claimData: widget.claimData,
-          onChanged: widget.onDataChanged,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => screen),
     );
   }
+
+  Future<void> _openSummary() async {
+    _saveMaster();
+    await _pushChild(ClaimSummaryScreen(
+      claimData: widget.claimData,
+      onChanged: widget.onDataChanged,
+    ));
+  }
+
+  Future<void> _openMovements() => _pushChild(MovementScreen(
+        claimData: widget.claimData,
+        onChanged: widget.onDataChanged,
+      ));
+
+  Future<void> _openAttendance() => _pushChild(AttendanceScreen(
+        claimData: widget.claimData,
+        onChanged: widget.onDataChanged,
+      ));
 
   Future<void> _exportJson() async {
     _saveMaster();
@@ -470,7 +514,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (newMonth == curM && newYear == curY) return;
 
     // Prompt if the user has uncommitted edits on the current month.
-    if (_hasUnsavedChanges) {
+    if (_dirty) {
       final save = await _confirmDiscardChanges();
       if (!mounted) return;
       if (save == null) return;
@@ -511,9 +555,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _selectedYear = newYear;
       });
       widget.onDataChanged();
-      _showSnack('Loaded $label');
-      _savedBaselineGlyph = _currentEditGlyph();
-      return;
+_showSnack('Loaded $label');
+    _markClean();
+    return;
     }
 
     if (!mounted) return;
@@ -568,14 +612,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     widget.onDataChanged();
     _showSnack('Started new claim for $label');
-    _savedBaselineGlyph = _currentEditGlyph();
+    _markClean();
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _confirmExit();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Allowance Portal'),
         actions: [
@@ -600,6 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(16),
         child: FormBuilder(
           key: _formKey,
+          onChanged: _markDirty,
           initialValue: {
             'name': widget.claimData.master.name,
             'designation': _normalizeDesignation(widget.claimData.master.designation),
@@ -635,25 +686,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 16),
               _DailyActionTiles(
-                onMovements: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MovementScreen(
-                      claimData: widget.claimData,
-                      onChanged: widget.onDataChanged,
-                    ),
-                  ),
-                ),
+                onMovements: _openMovements,
                 onSummary: _openSummary,
-                onAttendance: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AttendanceScreen(
-                      claimData: widget.claimData,
-                      onChanged: widget.onDataChanged,
-                    ),
-                  ),
-                ),
+                onAttendance: _openAttendance,
               ),
               const SizedBox(height: 12),
               Row(
@@ -850,7 +885,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 20),
                     FilledButton.icon(
-                      onPressed: _saveMaster,
+                      onPressed: () {
+                        if (_saveMaster()) _markClean();
+                      },
                       icon: const Icon(Icons.save_rounded),
                       label: const Text('Save Master Data'),
                       style: FilledButton.styleFrom(
@@ -873,6 +910,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

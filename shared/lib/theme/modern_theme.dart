@@ -41,6 +41,19 @@ enum ModernThemeId {
     Color(0xFF455A64),
     Brightness.dark,
     FlexScheme.greyLaw,
+  ),
+  /// Follows the device wallpaper on Android 12+ and above, where the platform
+  /// exposes a Material You palette. [ModernThemeData.buildModern] falls back
+  /// to [seed] everywhere else, so this id is always valid. It carries no
+  /// [FlexScheme] because its colours come from the platform rather than from
+  /// a fixed palette.
+  modernDynamic(
+    'modernDynamic',
+    'Dynamic (Wallpaper)',
+    Icons.palette_outlined,
+    Color(0xFF7B1FA2),
+    Brightness.light,
+    null,
   );
 
   const ModernThemeId(this.id, this.label, this.icon, this.seed,
@@ -50,7 +63,11 @@ enum ModernThemeId {
   final IconData icon;
   final Color seed;
   final Brightness brightness;
-  final FlexScheme flexScheme;
+  final FlexScheme? flexScheme;
+
+  /// True for themes whose palette is supplied by the platform rather than a
+  /// fixed [FlexScheme].
+  bool get isDynamic => flexScheme == null;
 
   static ModernThemeId fromId(String? id) {
     if (id == null) return ModernThemeId.modernMarine;
@@ -62,22 +79,42 @@ enum ModernThemeId {
 }
 
 extension ModernThemeData on ThemeData {
-  static ThemeData buildModern(ModernThemeId id) {
+  /// Builds the theme for [id].
+  ///
+  /// [dynamicScheme] is the platform-supplied Material You palette, typically
+  /// handed over by `DynamicColorBuilder` in the app entry point. It is only
+  /// consulted for [ModernThemeId.modernDynamic]; every other id ignores it.
+  /// When it is null — Android below 12, or a device with no wallpaper palette
+  /// — modernDynamic falls back to [ModernThemeId.seed] so the app always has
+  /// a usable scheme.
+  static ThemeData buildModern(ModernThemeId id, {ColorScheme? dynamicScheme}) {
     final isDark = id.brightness == Brightness.dark;
 
-    final flexTheme = isDark
-        ? FlexThemeData.dark(
-            scheme: id.flexScheme,
-            fontFamily: 'Noto Sans Devanagari',
-          )
-        : FlexThemeData.light(
-            scheme: id.flexScheme,
-            fontFamily: 'Noto Sans Devanagari',
-          );
+    final ThemeData base;
+    final ColorScheme scheme;
+    if (id.isDynamic) {
+      scheme = dynamicScheme ??
+          ColorScheme.fromSeed(seedColor: id.seed, brightness: id.brightness);
+      base = ThemeData(
+        colorScheme: scheme,
+        useMaterial3: true,
+        fontFamily: 'Noto Sans Devanagari',
+      );
+    } else {
+      final flexTheme = isDark
+          ? FlexThemeData.dark(
+              scheme: id.flexScheme,
+              fontFamily: 'Noto Sans Devanagari',
+            )
+          : FlexThemeData.light(
+              scheme: id.flexScheme,
+              fontFamily: 'Noto Sans Devanagari',
+            );
+      scheme = flexTheme.colorScheme;
+      base = flexTheme;
+    }
 
-    final scheme = flexTheme.colorScheme;
-
-    return flexTheme.copyWith(
+    return base.copyWith(
       scaffoldBackgroundColor: scheme.surfaceContainerLowest,
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,

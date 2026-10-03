@@ -56,3 +56,7 @@ migrate_working_dir/
 **/tool/
 **/gen/
 **/*.g.dart
+
+# Whole-repo AI dumps (Repomix) — regenerate with `npx repomix`, never commit
+repomix-output.xml
+repomix-output.*

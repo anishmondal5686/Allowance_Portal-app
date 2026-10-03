@@ -788,7 +788,7 @@ class AllowanceCalculator {
         row('Night navigation (Outward L>210 m)', '1010', '097', '5290', 0, 0),
         row('Night navigation (Outward Beam>30.5 m)', '675', '097', '5290', 0,
             0),
-        row('Lock to App. Jetty & vice versa', '1500', '067', '5215', 0, 0),
+        row('Lock to App. Jetty & vice versa', '1500', '067', '5340', 0, 0),
         row('Length (LOA>175.26m)', '310', '077', '5245', 0, 0),
         row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0, 0),
       ] else ...[
@@ -804,7 +804,7 @@ class AllowanceCalculator {
         row('Night act (L>175.26 m)', '205', '082', '5250', 0, 0),
         row('Night act (L<175.26 m)', '135', '082', '5250', 0, 0),
         row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0, 0),
-        row('Lock to App. Jetty & vice versa', '1000', '067', '5215', 0, 0),
+        row('Lock to App. Jetty & vice versa', '1000', '067', '5340', 0, 0),
         row('Cold Movement', '160', '072', '5230', 0, 0),
       ],
     ];
@@ -821,7 +821,7 @@ class AllowanceCalculator {
                 0),
             row('Night navigation (Outward Beam>30.5 m)', '675', '097', '5290',
                 0, 0),
-            row('Lock to App. Jetty & vice versa', '1500', '067', '5215', 0,
+            row('Lock to App. Jetty & vice versa', '1500', '067', '5340', 0,
                 0),
             row('Length (LOA>175.26m)', '310', '077', '5245', 0, 0),
             row('Night weightage (HRS)', 'As per cons. pay', '023', '5H01', 0,

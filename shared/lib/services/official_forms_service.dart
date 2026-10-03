@@ -304,12 +304,11 @@ class OfficialFormsService {
   }
 
   static ({String text, double size}) _rowDate(
-      Movement m, Map<String, String> attShifts, double size, List<double> cell) {
+      Movement m, double size, List<double> cell) {
     final raw = m.date.trim();
     final rawDk = raw.isEmpty ? '' : AllowanceCalculator.normDateKey(raw);
     if (rawDk.isEmpty) return (text: raw, size: size);
-    final shiftDk =
-        AllowanceCalculator.movementShiftDate(m, attShifts: attShifts);
+    final shiftDk = AllowanceCalculator.movementShiftDate(m);
     if (shiftDk == rawDk) return (text: raw, size: size);
 
     // normDateKey emits unpadded parts (e.g. '2026-9-1'), so parse by
@@ -328,11 +327,6 @@ class OfficialFormsService {
     final rDt = parseKey(rawDk);
     final sDt = parseKey(shiftDk);
     if (rDt == null || sDt == null) return (text: raw, size: size);
-    // Only annotate when the night shift belongs to a different
-    // calendar month/year than the movement's own date.
-    if (rDt.month == sDt.month && rDt.year == sDt.year) {
-      return (text: raw, size: size);
-    }
     String dd(DateTime d) => '${d.day}'.padLeft(2, '0');
     String mm(DateTime d) => '${d.month}'.padLeft(2, '0');
     String yy(DateTime d) => '${d.year}'.substring(2);
@@ -492,7 +486,7 @@ class OfficialFormsService {
         final y = 180.8 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 20 + i + 1}', _lcCols[0], y, 8.25));
         final rd =
-            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+            mv == null ? null : _rowDate(mv, 8.25, _lcCols[1]);
         w.add(_cell(f, rd?.text ?? '', _lcCols[1], y, rd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -516,7 +510,7 @@ class OfficialFormsService {
         final y = 562.5 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 5 + i + 1}', _lcCols[0], y, 8.25));
         final cd =
-            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+            mv == null ? null : _rowDate(mv, 8.25, _lcCols[1]);
         w.add(_cell(f, cd?.text ?? '', _lcCols[1], y, cd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -655,7 +649,7 @@ class OfficialFormsService {
         final y = 180.8 + i * 17.25;
         w.add(_cell(f, mv == null ? '' : '${p * 25 + i + 1}', _lcCols[0], y, 8.25));
         final rd =
-            mv == null ? null : _rowDate(mv, data.attShifts, 8.25, _lcCols[1]);
+            mv == null ? null : _rowDate(mv, 8.25, _lcCols[1]);
         w.add(_cell(f, rd?.text ?? '', _lcCols[1], y, rd?.size ?? 8.25));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _lcCols[2], y, 8.25));
         w.add(_cell(f, mv?.vessel ?? '', _lcCols[3], y, 8.25));
@@ -832,7 +826,7 @@ class OfficialFormsService {
         final y = 180.4 + i * 17.3;
         w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}', _naCols[0], y, 7.88));
         final rd =
-            mv == null ? null : _rowDate(mv, data.attShifts, 7.88, _naCols[1]);
+            mv == null ? null : _rowDate(mv, 7.88, _naCols[1]);
         w.add(_cell(f, rd?.text ?? '', _naCols[1], y, rd?.size ?? 7.88));
         w.add(_cell(f, mv == null ? '' : _startEnd(mv), _naCols[2], y, 7.88));
         w.add(_cell(f, mv?.vessel ?? '', _naCols[3], y, 7.88));
@@ -1352,7 +1346,7 @@ class OfficialFormsService {
           bold: true));
       w.add(_txt(f, 'HALDIA DOCK COMPLEX', 225.4, 51.3, 11.25, bold: true));
       w.add(_txt(f, 'Code No. 067', 39.7, 73.3, 9.38, bold: true));
-      w.add(_txt(f, 'SAP Code 5215', 39.7, 84.0, 9.5, bold: true));
+      w.add(_txt(f, 'SAP Code 5340', 39.7, 84.0, 9.5, bold: true));
       w.add(_txt(f, 'Dated: ', 440.9, 73.3, 9.38, bold: true));
       w.add(_hLine(473.2, 555.8, 84.0));
       w.add(_txt(f, 'MARINE OFFICE', 482.7, 87.5, 9.38, bold: true));
@@ -1411,7 +1405,7 @@ class OfficialFormsService {
         w.add(_cell(f, mv == null ? '' : '${p * 10 + i + 1}.', _lockCols[0], y, 8.62));
         final rd = mv == null
             ? null
-            : _rowDate(mv, data.attShifts, 8.62, _lockCols[1]);
+            : _rowDate(mv, 8.62, _lockCols[1]);
         w.add(_cell(f, rd?.text ?? '', _lockCols[1], y, rd?.size ?? 8.62));
         w.add(_cell(f, mv?.vessel ?? '', _lockCols[2], y, 8.62));
         w.add(_cell(f, mv?.start ?? '', _lockCols[3], y, 8.62));
@@ -1973,9 +1967,10 @@ class OfficialFormsService {
     if (t != null) {
       sun = '${_minToHHMM(t.$1)} / ${_minToHHMM(t.$2)}';
     }
+    final rd = _rowDate(mv, 8.25, _navCols[2]);
     return [
       '$sl',
-      mv.date,
+      rd.text,
       mv.vessel,
       mv.from,
       mv.to,

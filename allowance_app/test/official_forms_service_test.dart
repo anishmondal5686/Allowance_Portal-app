@@ -129,13 +129,43 @@ void main() {
           OfficialForm.lengthAndCold, data, 'same_day.pdf');
     });
 
-    test('mid-month pre-dawn movement dumps its raw date unchanged',
-        () async {
-      // 14/09 start 0302 -> shift date 13/09, same calendar month, so the
-      // range must NOT be shown.
+    test('mid-month pre-dawn movement dumps a date range', () async {
+      // 14/09 start 0302 -> shift date 13/09. Same calendar month, but the
+      // shift still belongs to the previous night, so the range IS shown.
       final data = withMovement(mv('14/09/2026', '03:02'));
       await buildAndDump(
           OfficialForm.lengthAndCold, data, 'mid_month_predawn.pdf');
+    });
+
+    test('nav form dumps the date range in its DATE cell', () async {
+      final data = ClaimData(master: MasterData(month: 'SEPTEMBER, 2026'));
+      data.movements.add(Movement(
+        date: '14/09/2026',
+        vessel: 'MV X',
+        from: 'OFF',
+        to: 'LOCK',
+        start: '03:02',
+        end: '04:40',
+        loa: '180',
+        beam: '32',
+        allowance: 'navigation',
+      ));
+      await buildAndDump(OfficialForm.nightNavigation, data, 'nav_range.pdf');
+    });
+
+    test('lock form dumps the updated SAP code', () async {
+      final data = withMovement(Movement(
+          date: '14/09/2026',
+          vessel: 'MV X',
+          from: 'LOCK',
+          to: 'APP. JETTY',
+          start: '06:00',
+          end: '07:00',
+          loa: '180',
+          beam: '32',
+          allowance: 'lock'));
+      await buildAndDump(
+          OfficialForm.lockToApproachJetty, data, 'lock_sap.pdf');
     });
 
     test('year-boundary movement dumps both years', () async {

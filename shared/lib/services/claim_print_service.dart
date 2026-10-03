@@ -252,7 +252,7 @@ class ClaimPrintService {
     'Length': '5245',
     'Night Navigation': '5290',
     'Night Act': '5250',
-    'Lock': '5215',
+    'Lock to Approach Jetty': '5340',
     'Cold': '5230',
   };
 
@@ -273,7 +273,7 @@ class ClaimPrintService {
       } else if (r.category.startsWith('Night act')) {
         key = 'Night Act';
       } else if (r.category.startsWith('Lock')) {
-        key = 'Lock';
+        key = 'Lock to Approach Jetty';
       } else if (r.category.startsWith('Cold')) {
         key = 'Cold';
       } else {
@@ -282,7 +282,13 @@ class ClaimPrintService {
       totals[key] = (totals[key] ?? 0) + r.amount;
     }
 
-    final order = ['Length', 'Night Navigation', 'Night Act', 'Lock', 'Cold'];
+    final order = [
+      'Length',
+      'Night Navigation',
+      'Night Act',
+      'Lock to Approach Jetty',
+      'Cold',
+    ];
     var first = true;
     void sep() {
       parts.add(pw.Text('  •  ',

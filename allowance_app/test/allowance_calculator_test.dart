@@ -953,6 +953,57 @@ void main() {
       expect(rowOf(sheet.baseRows, 'Lock to App. Jetty & vice versa').rateChart, '1500');
     });
 
+    test('lock rows carry SAP code 5340 across every rate variant', () {
+      const lockCat = 'Lock to App. Jetty & vice versa';
+
+      final adm = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Assistant Dock Master'));
+      adm.attLocked = true;
+      adm.movements.add(length('15/09/26'));
+      final admRow =
+          rowOf(AllowanceCalculator.calcSheet(adm).baseRows, lockCat);
+      expect(admRow.sapCode, '5340');
+      expect(admRow.oldCode, '067');
+      expect(admRow.rateChart, '1500');
+
+      final bp = ClaimData(master: MasterData(
+          month: 'SEPTEMBER, 2026',
+          designation: 'Berthing Pilot'));
+      bp.attLocked = true;
+      bp.movements.add(length('15/09/26'));
+      final bpRow = rowOf(AllowanceCalculator.calcSheet(bp).baseRows, lockCat);
+      expect(bpRow.sapCode, '5340');
+      expect(bpRow.oldCode, '067');
+      expect(bpRow.rateChart, '1000');
+
+      final acting = ClaimData(
+          master: MasterData(
+              month: 'SEPTEMBER, 2026',
+              designation: 'DOCK PILOT',
+              pay: '50000',
+              basic: '30000',
+              ada: '20000'),
+          attOffDay: '',
+          attRotation: '',
+          attShifts: const {'2026-9-30': 'N'},
+          actingAdmDates: const ['2026-9-30']);
+      acting.movements.add(Movement(
+          date: '01/10/26',
+          vessel: 'LOCK RUN',
+          from: 'LOCK',
+          to: 'APP. JETTY',
+          start: '03:02',
+          end: '05:00',
+          loa: '180',
+          allowance: 'lock'));
+      final actingRow =
+          rowOf(AllowanceCalculator.calcSheet(acting).actingRows, lockCat);
+      expect(actingRow.sapCode, '5340');
+      expect(actingRow.oldCode, '067');
+      expect(actingRow.rateChart, '1500');
+    });
+
     test('length row only counts movements with LOA >= 175.26', () {
       final data = ClaimData(master: MasterData(
           month: 'SEPTEMBER, 2026',

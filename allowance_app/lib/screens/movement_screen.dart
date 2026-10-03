@@ -907,7 +907,7 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       if (!_formKey.currentState!.validate()) return;
                       final movement = _buildMovement();
                       final claimKey =
@@ -919,6 +919,51 @@ class _MovementFormDialogState extends State<_MovementFormDialog> {
                       final shiftMonthKey = parsedShift == null
                           ? ''
                           : MasterData.monthKey(parsedShift.$1, parsedShift.$2);
+                      final rawKey =
+                          AllowanceCalculator.normDateKey(movement.date);
+                      if (shiftKey.isNotEmpty && shiftKey != rawKey) {
+                        final att = widget.claimData.attShifts[shiftKey];
+                        if (att == null || att == 'OFF') {
+                          final sp = shiftKey.split('-');
+                          final shiftLabel = (sp.length == 3 &&
+                                  parsedShift != null)
+                              ? _dateFmt.format(DateTime(
+                                  parsedShift.$1,
+                                  parsedShift.$2,
+                                  int.tryParse(sp[2]) ?? 1))
+                              : movement.date;
+                          final reason = att == 'OFF'
+                              ? 'marked as an off day'
+                              : 'not marked as a duty day';
+                          final proceed = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              icon: const Icon(Icons.nightlight_round),
+                              title: const Text('Night shift movement'),
+                              content: Text(
+                                'This movement starts at '
+                                '${movement.start} on ${movement.date}, so it '
+                                'belongs to the night shift of $shiftLabel. '
+                                'That date is $reason.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, true),
+                                  child: const Text('Save anyway'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (!context.mounted) return;
+                          if (proceed != true) return;
+                        }
+                      }
                       if (shiftKey.isNotEmpty && shiftMonthKey != claimKey) {
                         final shiftParts = shiftKey.split('-');
                         final shiftLabel =

@@ -55,6 +55,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
+  final _masterDataKey = GlobalKey();
   late int _selectedMonth;
   late int _selectedYear;
   String _currentDesignation = '';
@@ -165,6 +166,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// True until the profile fields every official form needs are filled in.
+  /// Drives the first-run hint above the daily actions.
+  bool get _isProfileIncomplete {
+    final m = widget.claimData.master;
+    return m.name.trim().isEmpty ||
+        m.designation.trim().isEmpty ||
+        m.employee.trim().isEmpty ||
+        m.sapEmployeeId.trim().isEmpty ||
+        m.bill.trim().isEmpty;
+  }
+
+  void _scrollToMasterData() {
+    final target = _masterDataKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+      alignment: 0.05,
+    );
   }
 
   /// A serialization of the claim as it currently appears on screen, including
@@ -716,6 +739,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _ModernCard(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                child: _ModernMonthPicker(
+                  selectedMonth: _selectedMonth,
+                  selectedYear: _selectedYear,
+                  savedMonths: _savedMonths,
+                  onMonthChanged: (v) => _changeMonth(v, _selectedYear),
+                  onYearChanged: (v) => _changeMonth(_selectedMonth, v),
+                ),
+              ),
+              if (_isProfileIncomplete) ...[
+                const SizedBox(height: 12),
+                _ProfileHint(onTap: _scrollToMasterData),
+              ],
+              const SizedBox(height: 24),
+              const _SectionHeader(
+                title: 'Daily Actions',
+                subtitle: 'Log movements, review the claim, mark attendance',
+                icon: Icons.bolt_rounded,
+              ),
+              const SizedBox(height: 16),
+              _DailyActionTiles(
+                onMovements: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MovementScreen(
+                      claimData: widget.claimData,
+                      onChanged: widget.onDataChanged,
+                    ),
+                  ),
+                ),
+                onSummary: _openSummary,
+                onAttendance: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AttendanceScreen(
+                      claimData: widget.claimData,
+                      onChanged: widget.onDataChanged,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.ios_share_rounded),
+                      label: const Text('Export Data'),
+                      onPressed: _exportJson,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.file_download_outlined),
+                      label: const Text('Import Data'),
+                      onPressed: _importJson,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _SectionHeader(
+                title: 'Monthly Summary',
+                subtitle: 'Claim totals & active allowances',
+                icon: Icons.summarize_outlined,
+              ),
+              const SizedBox(height: 16),
+              _buildSummarySection(scheme),
+              const SizedBox(height: 24),
+              _SectionHeader(
+                title: 'Sun Times',
+                subtitle: 'Sunrise & sunset for any date',
+                icon: Icons.wb_sunny_outlined,
+              ),
+              const SizedBox(height: 16),
+              _SunTimesCard(
+                date: _sunDate,
+                onPickDate: (d) => setState(() => _sunDate = d),
+              ),
+              const SizedBox(height: 24),
               _SectionHeader(
                 title: 'Master Data',
                 subtitle: 'Enter your profile and pay details',
@@ -723,16 +828,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 16),
               _ModernCard(
+                key: _masterDataKey,
                 child: Column(
                   children: [
-                    _ModernMonthPicker(
-                      selectedMonth: _selectedMonth,
-                      selectedYear: _selectedYear,
-                      savedMonths: _savedMonths,
-                      onMonthChanged: (v) => _changeMonth(v, _selectedYear),
-                      onYearChanged: (v) => _changeMonth(_selectedMonth, v),
-                    ),
-                    const SizedBox(height: 12),
                     FormBuilderTextField(
                       name: 'name',
                       decoration: InputDecoration(
@@ -888,109 +986,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Monthly Summary',
-                subtitle: 'Claim totals & active allowances',
-                icon: Icons.summarize_outlined,
-              ),
-              const SizedBox(height: 16),
-              _buildSummarySection(scheme),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Sun Times',
-                subtitle: 'Sunrise & sunset for any date',
-                icon: Icons.wb_sunny_outlined,
-              ),
-              const SizedBox(height: 16),
-              _SunTimesCard(
-                date: _sunDate,
-                onPickDate: (d) => setState(() => _sunDate = d),
-              ),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Actions',
-                subtitle: 'Navigate to other sections',
-                icon: Icons.rocket_launch_outlined,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        FilledButton.icon(
-                          icon: const Icon(Icons.receipt_long_rounded),
-                          label: const Text('Claim Summary'),
-                          onPressed: _openSummary,
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton.tonalIcon(
-                          icon: const Icon(Icons.directions_boat_rounded),
-                          label: const Text('Movements'),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MovementScreen(
-                                claimData: widget.claimData,
-                                onChanged: widget.onDataChanged,
-                              ),
-                            ),
-                          ),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton.tonalIcon(
-                          icon: const Icon(Icons.calendar_month_rounded),
-                          label: const Text('Attendance'),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AttendanceScreen(
-                                claimData: widget.claimData,
-                                onChanged: widget.onDataChanged,
-                              ),
-                            ),
-                          ),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.ios_share_rounded),
-                          label: const Text('Export Data'),
-                          onPressed: _exportJson,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.file_download_outlined),
-                          label: const Text('Import Data'),
-                          onPressed: _importJson,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                        ),
-                        const SizedBox(height: 62),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 32),
               _SectionHeader(
                 title: 'Drive Sync',
@@ -1101,6 +1096,153 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+/// First-run nudge: every official form needs the profile fields, so point the
+/// user at Master Data instead of letting them discover it after filling a
+/// movement register.
+class _ProfileHint extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ProfileHint({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: scheme.onTertiaryContainer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Finish your profile in Master Data to print official forms.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onTertiaryContainer,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: scheme.onTertiaryContainer),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The three things a pilot opens every day. Movements leads because it is
+/// entered once per job; the other two are reviews. The row count adapts so
+/// the tiles stay readable on a narrow phone and use the width on a tablet.
+/// The three things a pilot opens every day, as one equal row of tiles.
+/// Movements leads by colour rather than by size so all three stay the same
+/// shape and nothing reflows when a label wraps to two lines.
+class _DailyActionTiles extends StatelessWidget {
+  final VoidCallback onMovements;
+  final VoidCallback onSummary;
+  final VoidCallback onAttendance;
+
+  const _DailyActionTiles({
+    required this.onMovements,
+    required this.onSummary,
+    required this.onAttendance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _ActionTile(
+              icon: Icons.directions_boat_rounded,
+              label: 'Movements',
+              onTap: onMovements,
+              primary: true,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ActionTile(
+              icon: Icons.receipt_long_rounded,
+              label: 'Claim Summary',
+              onTap: onSummary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ActionTile(
+              icon: Icons.calendar_month_rounded,
+              label: 'Attendance',
+              onTap: onAttendance,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool primary;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background =
+        primary ? scheme.primary : scheme.surfaceContainerHighest;
+    final foreground = primary ? scheme.onPrimary : scheme.onSurface;
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 26, color: foreground),
+              const SizedBox(height: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -1154,8 +1296,13 @@ class _SectionHeader extends StatelessWidget {
 
 class _ModernCard extends StatelessWidget {
   final Widget child;
+  final EdgeInsetsGeometry padding;
 
-  const _ModernCard({required this.child});
+  const _ModernCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1163,7 +1310,7 @@ class _ModernCard extends StatelessWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: padding,
         child: child,
       ),
     );

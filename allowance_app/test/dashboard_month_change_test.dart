@@ -219,6 +219,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
+    // Master Data now sits below the fold, so focusing the name field scrolls
+    // it into view and pushes the month picker off the top. Scroll back.
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -269,6 +274,11 @@ void main() {
         'NEW NAME');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
+
+    // Master Data now sits below the fold, so focusing the name field scrolls
+    // it into view and pushes the month picker off the top. Scroll back.
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(DropdownButtonFormField<int>).first);
     await tester.pump();

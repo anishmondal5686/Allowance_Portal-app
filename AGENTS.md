@@ -23,7 +23,7 @@ App-specific services stay local:
 - Flutter: `C:\flutter\bin\flutter.bat` (run via call operator: `& "C:\flutter\bin\flutter.bat" ...`).
 - adb: `C:\Users\way2m\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Emulator: `Pixel_6_API_35`.
-- Release Keystore: `android/app/release.jks` in both apps (alias `release`, pass `Allowance@2026`). Keystore backup at `Desktop\allowance_apks\keystore\`.
+- Release Keystore: `android/app/release.jks` in both apps (alias `release`). Password is NOT recorded here — read it from `Desktop\allowance_apks\keystore\READ_ME.txt`. Keystore backup at `Desktop\allowance_apks\keystore\`.
 - APK output: `build\app\outputs\flutter-apk\app-release.apk` (or `--split-per-abi` → `app-arm64-v8a-release.apk`).
 - Verify PDFs with PyMuPDF: `python -X utf8 -c "import fitz; ..."`.
 

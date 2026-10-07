@@ -40,6 +40,29 @@ void main() {
         expect(picked, isNotEmpty, reason: 'variant $variant was left assetless');
       }
     });
+
+    test('current release naming keeps the two variants disjoint', () {
+      const currentV1 = 'allowance_app_v1_2.0.36-arm64-v8a_RELEASE.apk';
+      const currentV2 = 'allowance_app_v2_2.0.36-arm64-v8a_RELEASE.apk';
+
+      // The in-app updater matches assets by name, so a v1 asset must contain
+      // 'v1' and must never contain 'v2' — otherwise v1 devices pick up the
+      // v2 APK and the install fails on a package-name mismatch.
+      expect(currentV1.contains('v1'), isTrue);
+      expect(currentV1.contains('v2'), isFalse);
+
+      final assets = [_asset(currentV1), _asset(currentV2)];
+      expect(
+        UpdateService.selectAssetsForVariant(assets, appVariant: 'v1')
+            .map((a) => a.name),
+        [currentV1],
+      );
+      expect(
+        UpdateService.selectAssetsForVariant(assets, appVariant: 'v2')
+            .map((a) => a.name),
+        [currentV2],
+      );
+    });
   });
 }
 

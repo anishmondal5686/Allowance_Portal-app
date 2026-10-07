@@ -65,8 +65,14 @@ class UpdateService {
   }
 
   /// Filters a GitHub release `assets` JSON list to the APKs for [appVariant].
-  /// v1 assets are named `allowance_app_...` (excluding the `allowance_app_v2_`
-  /// prefix), v2 assets are named `allowance_app_v2_...`.
+  ///
+  /// Current assets carry the `allowance_app_v1_` / `allowance_app_v2_`
+  /// prefix. The v1 rule is deliberately spelled as "starts with
+  /// `allowance_app_` but not `allowance_app_v2_`" rather than
+  /// `allowance_app_v1_`, so that assets published before the v1 prefix was
+  /// adopted still route correctly. Either way the two variants must stay
+  /// disjoint: a v1 device must never be handed a v2 APK, because an install
+  /// over a different package name fails and leaves the user stuck.
   static List<UpdateAsset> selectAssetsForVariant(
     List<dynamic> jsonAssets, {
     String? appVariant,

@@ -439,7 +439,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         if (summary.lines.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _AllowancePieChart(summary: summary),
+          AllowancePieChart(summary: summary),
         ],
       ],
     );
@@ -1417,10 +1417,10 @@ class _KpiCard extends StatelessWidget {
   }
 }
 
-class _AllowancePieChart extends StatelessWidget {
+class AllowancePieChart extends StatelessWidget {
   final ClaimSummary summary;
 
-  const _AllowancePieChart({required this.summary});
+  const AllowancePieChart({super.key, required this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -1514,6 +1514,12 @@ class _AllowancePieChart extends StatelessWidget {
             SizedBox(
               height: 160,
               child: PieChart(
+                // fl_chart animates data.sections with an implicit tween but
+                // rebuilds badge children from the new list, so growing the
+                // section count mid-animation makes RenderPieChart.badgeWidgetPaint
+                // index past the end (RangeError, range 0..1: 2). Keying on the
+                // count makes Flutter swap the chart instead of animating it.
+                key: ValueKey<int>(lines.length),
                 PieChartData(
                   sections: sections,
                   centerSpaceRadius: 40,

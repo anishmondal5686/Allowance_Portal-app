@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -56,7 +57,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormBuilderState>();
   final _masterDataKey = GlobalKey();
   late int _selectedMonth;
@@ -92,10 +94,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _selectedMonth = parsed?.$2 ?? now.month;
     _currentDesignation = _normalizeDesignation(m.designation);
     _sunDate = now;
+    _masterExpanded = _isProfileIncomplete;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForUpdate();
     });
+    WidgetsBinding.instance.addObserver(this);
     _refreshSavedMonths();
+  }
+
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // Best-effort flush: commit the form and persist before the OS
+      // suspends or kills the process (crash, task-kill, reboot).
+      _flushPendingSave();
+    }
   }
 
   Future<void> _refreshSavedMonths() async {
@@ -133,18 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _saveMaster() {
     final formState = _formKey.currentState;
     if (formState == null || !formState.saveAndValidate()) return false;
-    final values = formState.value;
-    widget.claimData.master = MasterData(
-      month: MasterData.monthKey(_selectedYear, _selectedMonth),
-      name: (values['name'] as String).trim().toUpperCase(),
-      designation: values['designation'] as String,
-      employee: (values['employee'] as String).trim(),
-      sapEmployeeId: (values['sapEmployeeId'] as String).trim(),
-      pay: (values['pay'] as String).trim(),
-      bill: (values['bill'] as String).trim(),
-      basic: (values['basic'] as String).trim(),
-      ada: (values['ada'] as String).trim(),
-    );
+    widget.claimData.master = _masterFromForm();
     widget.onDataChanged();
     _refreshSavedMonths();
     _showSnack('Master data saved');
@@ -168,6 +178,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'ada': m.ada,
     });
     _suppressDirty = false;
+    // A freshly loaded claim brings its own profile state; callers setState
+    // right after this, so the section opens or shuts accordingly.
+    _masterExpanded = _isMasterIncomplete(m);
   }
 
   void _showSnack(String msg) {
@@ -176,8 +189,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// True until the profile fields every official form needs are filled in.
   /// Drives the first-run hint above the daily actions.
-  bool get _isProfileIncomplete {
-    final m = widget.claimData.master;
+  bool get _isProfileIncomplete => _isMasterIncomplete(widget.claimData.master);
+
+  static bool _isMasterIncomplete(MasterData m) {
     return m.name.trim().isEmpty ||
         m.designation.trim().isEmpty ||
         m.employee.trim().isEmpty ||
@@ -186,6 +200,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _scrollToMasterData() {
+    if (!_masterExpanded) {
+      setState(() => _masterExpanded = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToTarget());
+      return;
+    }
+    _scrollToTarget();
+  }
+
+  void _scrollToTarget() {
     final target = _masterDataKey.currentContext;
     if (target == null) return;
     Scrollable.ensureVisible(
@@ -207,6 +230,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// validation mid-build.
   bool _dirty = false;
 
+  /// Whether the Master Data section is expanded. Starts open when the
+  /// profile is incomplete (first run) so the missing fields are visible,
+  /// and shut once the profile is complete. Re-evaluated on every load via
+  /// [_applyMaster] and collapsed after an explicit save.
+  bool _masterExpanded = false;
+
+  /// Required profile fields, mirroring [_isProfileIncomplete]: name,
+  /// designation, employee/DPS number, SAP id and bill number.
+  int get _profileCompleteCount {
+    final m = widget.claimData.master;
+    var n = 0;
+    if (m.name.trim().isNotEmpty) n++;
+    if (m.designation.trim().isNotEmpty) n++;
+    if (m.employee.trim().isNotEmpty) n++;
+    if (m.sapEmployeeId.trim().isNotEmpty) n++;
+    if (m.bill.trim().isNotEmpty) n++;
+    return n;
+  }
+
   /// Set while patching form fields programmatically so the resulting
   /// `FormBuilder.onChanged` is not counted as a user edit.
   bool _suppressDirty = false;
@@ -214,6 +256,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _markDirty() {
     if (_suppressDirty || _dirty) return;
     setState(() => _dirty = true);
+  }
+
+  /// Debounce for the master-form auto-commit. Null when no keystroke is
+  /// waiting to be flushed to the claim and the device.
+  Timer? _autoSaveTimer;
+
+  /// Form entry point: marks the edit dirty and (re)arms the auto-commit.
+  /// Programmatic patches via [_applyMaster] are suppressed and never arm it.
+  void _onMasterChanged() {
+    _markDirty();
+    if (_suppressDirty) return;
+    _scheduleAutoSave();
+  }
+
+  void _scheduleAutoSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _autoSaveTimer = null;
+      if (!mounted) return;
+      _flushPendingSave();
+    });
+  }
+
+  /// Builds the master record from the live form values without validating,
+  /// so a half-typed profile still persists. Explicit saves keep using
+  /// [_saveMaster]'s `saveAndValidate` gate.
+  MasterData _masterFromForm() {
+    final values = _formKey.currentState?.value ?? {};
+    return MasterData(
+      month: MasterData.monthKey(_selectedYear, _selectedMonth),
+      name: (values['name'] as String?)?.trim().toUpperCase() ?? '',
+      designation: values['designation'] as String? ?? '',
+      employee: (values['employee'] as String?)?.trim() ?? '',
+      sapEmployeeId: (values['sapEmployeeId'] as String?)?.trim() ?? '',
+      pay: (values['pay'] as String?)?.trim() ?? '',
+      bill: (values['bill'] as String?)?.trim() ?? '',
+      basic: (values['basic'] as String?)?.trim() ?? '',
+      ada: (values['ada'] as String?)?.trim() ?? '',
+    );
+  }
+
+  /// Commits the live form to the claim and persists it now, awaiting the
+  /// write so exit and month-switch paths lose nothing. Never throws: a
+  /// failed write surfaces as a snack and the in-memory claim is intact.
+  Future<void> _flushPendingSave() async {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = null;
+    try {
+      final formState = _formKey.currentState;
+      if (formState == null) return;
+      formState.save();
+      widget.claimData.master = _masterFromForm();
+      await _localStore.save(widget.claimData);
+      widget.onDataChanged();
+      _refreshSavedMonths();
+      _markClean();
+    } catch (e) {
+      if (mounted) _showSnack('Auto-save failed: $e');
+    }
   }
 
   /// Call after the form has been repopulated from a freshly loaded claim, or
@@ -224,51 +325,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _dirty = false);
   }
 
-  /// Intercepts a back gesture or system back while the master form has
-  /// uncommitted edits. Reuses the same three-way dialog as the month
-  /// switcher: null cancels, false discards, true saves first.
+  /// Intercepts a back gesture or system back. Every mutation — master
+  /// keystrokes included — is auto-committed within seconds and flushed on
+  /// lifecycle pauses, so there is nothing left to confirm: pending edits
+  /// are flushed synchronously and the exit is requested explicitly.
   ///
   /// The dashboard is the root route, so `Navigator.pop()` cannot dismiss it:
   /// `maybePop` reports that nothing was popped and `handlePopRoute` falls
-  /// straight through to `SystemNavigator.pop()`, which would exit the app and
-  /// skip this prompt entirely. Leaving therefore has to be requested
-  /// explicitly once the user has confirmed.
+  /// straight through to `SystemNavigator.pop()`, which would exit the app
+  /// and skip this flush entirely. Leaving therefore has to be requested
+  /// explicitly once the flush has landed.
   Future<void> _confirmExit() async {
-    if (_dirty) {
-      final save = await _confirmDiscardChanges();
-      if (!mounted) return;
-      if (save == null) return;
-      if (save) _saveLocal();
-    }
+    await _flushPendingSave();
+    if (!mounted) return;
     await SystemNavigator.pop();
-  }
-
-  /// Result of the unsaved-changes confirmation dialog: true = explicit save,
-  /// false = discard and continue. Returns null if the user cancelled.
-  Future<bool?> _confirmDiscardChanges() async {
-    return showDialog<bool?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: const Text(
-            'There are changes that have not been explicitly saved.\n\n'
-            'Save them to this device, or discard them?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Discard'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _saveLocal() {
@@ -510,13 +580,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final curY = parsed?.$1 ?? _selectedYear;
     if (newMonth == curM && newYear == curY) return;
 
-    // Prompt if the user has uncommitted edits on the current month.
-    if (_dirty) {
-      final save = await _confirmDiscardChanges();
-      if (!mounted) return;
-      if (save == null) return;
-      if (save) _saveLocal();
-    }
+    // Flush any pending master edits into the current month before leaving
+    // it; the write is awaited so the switch loses nothing.
+    await _flushPendingSave();
+    if (!mounted) return;
 
     final label = '${MasterData.monthNames[newMonth - 1][0]}'
         '${MasterData.monthNames[newMonth - 1].substring(1).toLowerCase()} '
@@ -618,7 +685,7 @@ _showSnack('Loaded $label');
     final summary = AllowanceCalculator.computeSummary(widget.claimData);
 
     return PopScope(
-      canPop: !_dirty,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         _confirmExit();
@@ -648,7 +715,7 @@ _showSnack('Loaded $label');
         padding: const EdgeInsets.all(16),
         child: FormBuilder(
           key: _formKey,
-          onChanged: _markDirty,
+          onChanged: _onMasterChanged,
           initialValue: {
             'name': widget.claimData.master.name,
             'designation': _normalizeDesignation(widget.claimData.master.designation),
@@ -753,8 +820,14 @@ _showSnack('Loaded $label');
                 icon: LucideIcons.user,
               ),
               const SizedBox(height: 16),
-              _ModernCard(
+              _MasterDataSection(
                 key: _masterDataKey,
+                expanded: _masterExpanded,
+                onToggle: () =>
+                    setState(() => _masterExpanded = !_masterExpanded),
+                name: widget.claimData.master.name,
+                designation: widget.claimData.master.designation,
+                complete: _profileCompleteCount,
                 child: Column(
                   children: [
                     FormBuilderTextField(
@@ -903,7 +976,10 @@ _showSnack('Loaded $label');
                     const SizedBox(height: 20),
                     FilledButton.icon(
                       onPressed: () {
-                        if (_saveMaster()) _markClean();
+                        if (_saveMaster()) {
+                          _markClean();
+                          setState(() => _masterExpanded = false);
+                        }
                       },
                       icon: const Icon(LucideIcons.save),
                       label: const Text('Save Master Data'),
@@ -1172,7 +1248,6 @@ class _ModernCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   const _ModernCard({
-    super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
   });
@@ -1195,6 +1270,135 @@ class _ModernCard extends StatelessWidget {
       child: Padding(
         padding: padding,
         child: child,
+      ),
+    );
+  }
+}
+
+/// Collapsible Master Data (pilot profile) section. The header shows the
+/// saved name, designation and a completeness pill; the 8-field form stays
+/// mounted while collapsed (zero-height), so every label remains findable
+/// and no form state is ever dropped by hiding it.
+class _MasterDataSection extends StatelessWidget {
+  final bool expanded;
+  final VoidCallback onToggle;
+  final String name;
+  final String designation;
+  final int complete;
+  final Widget child;
+
+  static const int totalFields = 5;
+
+  const _MasterDataSection({
+    super.key,
+    required this.expanded,
+    required this.onToggle,
+    required this.name,
+    required this.designation,
+    required this.complete,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final initial = name.trim().isEmpty ? null : name.trim()[0].toUpperCase();
+    return _ModernCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.onPrimaryContainer,
+                    child: initial == null
+                        ? const Icon(LucideIcons.userRound, size: 20)
+                        : Text(
+                            initial,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name.trim().isEmpty
+                              ? 'Set up your profile'
+                              : name.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          designation.trim().isEmpty
+                              ? 'Master profile'
+                              : designation.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: complete >= totalFields
+                          ? scheme.primary
+                          : scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$complete/$totalFields',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: complete >= totalFields
+                            ? scheme.onPrimary
+                            : scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      LucideIcons.chevronDown,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: child,
+            ),
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+            sizeCurve: Curves.easeOutCubic,
+          ),
+        ],
       ),
     );
   }

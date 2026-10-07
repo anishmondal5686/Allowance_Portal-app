@@ -1,3 +1,5 @@
+﻿import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +12,9 @@ import 'package:allowance_shared/theme/modern_theme.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 
 /// In-memory [DriveService] so the dashboard never touches the file system or
-/// Google APIs.
+/// Google APIs. `saveLocalBackup` snapshots the claim (serialisation
+/// round-trip), so assertions on flushed months observe what was actually
+/// written, not a live alias.
 class _FakeDriveService extends DriveService {
   final Map<String, ClaimData> saved = {};
 
@@ -19,6 +23,13 @@ class _FakeDriveService extends DriveService {
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
+
+  @override
+  Future<String> saveLocalBackup(ClaimData data) async {
+    saved[data.master.month] = ClaimData.fromJson(
+        jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>);
+    return 'fake';
+  }
 }
 
 Widget _dashboard(ClaimData claim,
@@ -52,7 +63,7 @@ Finder _field(String name) => find.byWidgetPredicate(
     );
 
 /// Records `SystemNavigator.pop()` requests. The dashboard is the root route,
-/// so a confirmed exit is a platform exit request rather than a route pop —
+/// so an exit is a platform exit request rather than a route pop â€”
 /// `handlePopRoute` in binding.dart falls through to the platform whenever
 /// `maybePop` has nothing to dismiss.
 List<String> _watchExitRequests(WidgetTester tester) {
@@ -128,60 +139,46 @@ void main() {
     expect(_exits(exits), 1);
   });
 
-  testWidgets('back with unsaved edits prompts instead of exiting',
-      (tester) async {
-    final exits = _watchExitRequests(tester);
-    await tester.pumpWidget(_dashboard(_claim()));
-    await _settle(tester);
-
-    await _type(tester, 'name', 'NEW NAME');
-    await _pressBack(tester);
-
-    expect(find.text('Unsaved changes'), findsOneWidget);
-    // The guard must hold: exiting now would silently lose the edit.
-    expect(_exits(exits), 0);
-  });
-
-  testWidgets('cancelling the unsaved-changes prompt keeps the dashboard',
+  testWidgets('back with unsaved edits flushes them and exits without prompting',
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
-    await tester.pumpWidget(_dashboard(claim));
-    await _settle(tester);
-
-    await _type(tester, 'name', 'NEW NAME');
-    await _pressBack(tester);
-
-    await tester.tap(find.text('Cancel'));
-    await _settle(tester);
-
-    expect(find.byType(DashboardScreen), findsOneWidget);
-    expect(find.text('Unsaved changes'), findsNothing);
-    expect(_exits(exits), 0);
-    expect(claim.master.name, 'TEST USER');
-  });
-
-  testWidgets('discarding unsaved edits exits without persisting them',
-      (tester) async {
-    final exits = _watchExitRequests(tester);
-    final claim = _claim();
+    final store = _FakeDriveService();
     var saves = 0;
-    await tester.pumpWidget(_dashboard(claim, onChanged: () => saves++));
+    await tester.pumpWidget(
+        _dashboard(claim, drive: store, onChanged: () => saves++));
     await _settle(tester);
 
     await _type(tester, 'name', 'NEW NAME');
     await _pressBack(tester);
 
-    await tester.tap(find.text('Discard'));
-    await _settle(tester);
-
+    // No dialog: the pending edit is flushed to the store, then the app exits.
     expect(find.text('Unsaved changes'), findsNothing);
     expect(_exits(exits), 1);
-    expect(claim.master.name, 'TEST USER');
-    expect(saves, 0);
+    expect(claim.master.name, 'NEW NAME');
+    expect(store.saved['2026-09']?.master.name, 'NEW NAME');
+    expect(saves, greaterThanOrEqualTo(1));
   });
 
-  testWidgets('saving unsaved edits exits and persists the master form',
+  testWidgets('the debounce window auto-commits edits without pressing back',
+      (tester) async {
+    final store = _FakeDriveService();
+    final claim = _claim();
+    await tester.pumpWidget(_dashboard(claim, drive: store));
+    await _settle(tester);
+
+    await _type(tester, 'name', 'NEW NAME');
+
+    // Let the 2s auto-commit timer fire under the fake async clock.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(store.saved['2026-09']?.master.name, 'NEW NAME');
+    expect(find.text('Unsaved changes'), findsNothing);
+  });
+
+  testWidgets('explicit Save still commits a valid form, then back exits cleanly',
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
@@ -191,31 +188,27 @@ void main() {
 
     await _fillRequiredFields(tester);
     await _type(tester, 'name', 'NEW NAME');
-    await _pressBack(tester);
-    expect(find.text('Unsaved changes'), findsOneWidget);
-
-    await tester.tap(find.text('Save'));
+    await tester.ensureVisible(find.text('Save Master Data'));
+    await tester.pump();
+    await tester.tap(find.text('Save Master Data'));
     await _settle(tester);
 
+    expect(saves, 1);
+    expect(claim.master.name, 'NEW NAME');
+
+    // A back press flushes (no-op: already saved) and exits, no dialog.
+    await _pressBack(tester);
     expect(find.text('Unsaved changes'), findsNothing);
     expect(_exits(exits), 1);
-    expect(claim.master.name, 'NEW NAME');
-    expect(claim.master.bill, '4242');
-    expect(saves, greaterThanOrEqualTo(1));
   });
 
-  // Regression: the dashboard used to compare a serialization of the claim
-  // against a baseline captured when the widget was built. Returning from a
-  // child screen left that baseline stale, so back and the month switcher both
-  // prompted about work that was already saved.
-  testWidgets('a child-screen round trip does not resurrect a false prompt',
+  testWidgets('a child-screen round trip then back exits without prompting',
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
     await tester.pumpWidget(_dashboard(claim));
     await _settle(tester);
 
-    // Clean form, so the child return leaves the flag clear.
     await _tapTile(tester, 'Movements');
     expect(find.text('Unsaved changes'), findsNothing);
 
@@ -230,12 +223,14 @@ void main() {
   });
 
   // The Movements and Attendance screens persist their own data but never
-  // commit the master form, so a pending master edit must still be reported.
-  testWidgets('an unsaved master edit still prompts after a child round trip',
+  // commit the master form; a pending master edit must survive the round
+  // trip and flush on exit instead of being dropped or prompting.
+  testWidgets('an unsaved master edit survives a child round trip and flushes on exit',
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
-    await tester.pumpWidget(_dashboard(claim));
+    final store = _FakeDriveService();
+    await tester.pumpWidget(_dashboard(claim, drive: store));
     await _settle(tester);
 
     await _type(tester, 'name', 'NEW NAME');
@@ -246,32 +241,10 @@ void main() {
     expect(find.byType(DashboardScreen), findsOneWidget);
 
     await _pressBack(tester);
-    expect(find.text('Unsaved changes'), findsOneWidget);
-    expect(_exits(exits), 0);
-    expect(claim.master.name, 'TEST USER');
-  });
-
-  testWidgets('back after an explicit master save does not prompt',
-      (tester) async {
-    final exits = _watchExitRequests(tester);
-    final claim = _claim();
-    var saves = 0;
-    await tester.pumpWidget(_dashboard(claim, onChanged: () => saves++));
-    await _settle(tester);
-
-    await _fillRequiredFields(tester);
-    await _pressBack(tester);
-    expect(find.text('Unsaved changes'), findsOneWidget);
-    await tester.tap(find.text('Save'));
-    await _settle(tester);
-
-    expect(saves, greaterThanOrEqualTo(1));
-    expect(claim.master.name, 'TEST USER');
-
-    // A second back press has nothing left to confirm.
-    await _pressBack(tester);
     expect(find.text('Unsaved changes'), findsNothing);
-    expect(_exits(exits), 2);
+    expect(_exits(exits), 1);
+    expect(claim.master.name, 'NEW NAME');
+    expect(store.saved['2026-09']?.master.name, 'NEW NAME');
   });
 
   testWidgets('a back press inside a child screen is not guarded',

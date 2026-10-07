@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:allowance_shared/models/claim_data.dart';
@@ -19,7 +21,8 @@ class AllowanceApp extends StatefulWidget {
   State<AllowanceApp> createState() => _AllowanceAppState();
 }
 
-class _AllowanceAppState extends State<AllowanceApp> {
+class _AllowanceAppState extends State<AllowanceApp>
+    with WidgetsBindingObserver {
   static const _appVersion = '2.0.36';
   final ClaimData _claimData = ClaimData();
   final DriveService _driveService = DriveService();
@@ -27,11 +30,35 @@ class _AllowanceAppState extends State<AllowanceApp> {
   ModernThemeId _themeId = ModernThemeId.modernMarine;
   bool _loading = true;
 
+  /// Debounce for the Drive auto-upload. Local saves land immediately via
+  /// [_onDataChanged]; uploads batch behind a longer window so daily edits
+  /// cost one transfer instead of one per keystroke.
+  Timer? _uploadTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initData();
     _initTheme();
+  }
+
+  @override
+  void dispose() {
+    _uploadTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // Flush a pending upload now; the OS may suspend the process next.
+      _uploadTimer?.cancel();
+      _uploadTimer = null;
+      _autoUpload();
+    }
   }
 
   Future<void> _initTheme() async {
@@ -69,6 +96,28 @@ class _AllowanceAppState extends State<AllowanceApp> {
   void _onDataChanged() {
     _driveService.saveLocalBackup(_claimData);
     setState(() {});
+    _scheduleAutoUpload();
+  }
+
+  void _scheduleAutoUpload() {
+    _uploadTimer?.cancel();
+    _uploadTimer = Timer(const Duration(seconds: 30), () {
+      _uploadTimer = null;
+      _autoUpload();
+    });
+  }
+
+  /// Best-effort background upload, signed-in only. Failures (offline,
+  /// expired login) are silent: the local backup is the source of truth and
+  /// the next success converges. Success stamps `DriveService.lastSyncTime`,
+  /// which the dashboard Drive card displays.
+  Future<void> _autoUpload() async {
+    if (!_driveService.isSignedIn) return;
+    try {
+      await _driveService.uploadClaim(_claimData);
+    } catch (_) {
+      // Silent by design; surfaces as staleness on the Drive card instead.
+    }
   }
 
   @override

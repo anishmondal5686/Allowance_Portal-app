@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,6 +13,8 @@ import 'package:flutter_form_builder/flutter_form_builder.dart';
 
 /// In-memory [LocalStore] that never touches path_provider or the file system,
 /// so month switching is deterministic under the widget test's fake async.
+/// `save` snapshots the claim (serialisation round-trip), so assertions on
+/// flushed months observe what was actually written, not a live alias.
 class _FakeLocalStore extends LocalStore {
   final Map<String, ClaimData> saved = {};
 
@@ -19,6 +23,13 @@ class _FakeLocalStore extends LocalStore {
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
+
+  @override
+  Future<String> save(ClaimData data) async {
+    saved[data.master.month] = ClaimData.fromJson(
+        jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>);
+    return 'fake';
+  }
 }
 
 void main() {
@@ -183,8 +194,9 @@ void main() {
     expect(claim.movements, hasLength(1));
   });
 
-  testWidgets('unsaved edits prompt before switching and Cancel aborts',
+  testWidgets('pending master edits flush into the old month before switching',
       (tester) async {
+    final store = _FakeLocalStore();
     final claim = ClaimData(
       master: MasterData(
         month: '2026-09',
@@ -203,7 +215,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: _FakeLocalStore(),
+          localStore: store,
         ),
       ),
     ));
@@ -211,7 +223,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Edit an uncommitted master-field change (typing alone is not autosaved).
+    // Edit a master field without explicitly saving.
     await tester.enterText(
         find.byType(FormBuilderTextField).first,
         'NEW NAME');
@@ -230,19 +242,40 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Unsaved changes'), findsOneWidget);
+    // No prompt: the flush already wrote September, then the switch proceeds.
+    expect(find.text('Unsaved changes'), findsNothing);
+    expect(find.text('Start a new month?'), findsOneWidget);
 
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.text('Start New'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(claim.master.month, '2026-09');
-    expect(claim.attShifts, isNotEmpty);
-    expect(find.text('Start a new month?'), findsNothing);
+    expect(claim.master.month, '2026-08');
+    expect(store.saved['2026-09']?.master.name, 'NEW NAME');
   });
 
-  testWidgets('unsaved edits prompt lets the user discard and continue switching',
+  testWidgets('switching to a saved month flushes pending edits first, then loads',
       (tester) async {
+    final store = _FakeLocalStore();
+    final saved = ClaimData(
+      master: MasterData(
+        month: '2026-08',
+        name: 'SAVED USER',
+        designation: 'DOCK PILOT',
+      ),
+    );
+    saved.movements.addAll([
+      Movement(
+        date: '2026-08-12',
+        start: '10:00',
+        end: '13:00',
+        from: 'JETTY',
+        to: 'ANCHORAGE',
+        allowance: 'Length',
+      ),
+    ]);
+    store.saved['2026-08'] = saved;
+
     final claim = ClaimData(
       master: MasterData(
         month: '2026-09',
@@ -260,7 +293,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: _FakeLocalStore(),
+          localStore: store,
         ),
       ),
     ));
@@ -274,8 +307,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    // Master Data now sits below the fold, so focusing the name field scrolls
-    // it into view and pushes the month picker off the top. Scroll back.
     await tester.ensureVisible(find.byType(DropdownButtonFormField<int>).first);
     await tester.pumpAndSettle();
 
@@ -286,17 +317,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Unsaved changes'), findsOneWidget);
-
-    await tester.tap(find.text('Discard'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    // Continue to the 'Start a new month?' flow for the empty target month.
-    expect(find.text('Start a new month?'), findsOneWidget);
-    await tester.tap(find.text('Start New'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    // September's pending edit is preserved on disk, then August loads over it.
+    expect(find.text('Unsaved changes'), findsNothing);
+    expect(find.text('Start a new month?'), findsNothing);
+    expect(store.saved['2026-09']?.master.name, 'NEW NAME');
     expect(claim.master.month, '2026-08');
+    expect(claim.master.name, 'SAVED USER');
+    expect(claim.movements, hasLength(1));
   });
 }

@@ -43,6 +43,11 @@ class DriveService {
   String? _userFolderId;
   Future<io.Directory> Function()? _dirOverride;
 
+  /// Wall-clock time of the last successful Drive transfer in either
+  /// direction (upload or download). Null when nothing has synced yet this
+  /// run; drives the 'Last synced' line on the dashboard Drive card.
+  DateTime? lastSyncTime;
+
   DriveService({Future<io.Directory> Function()? dirOverride}) {
     _dirOverride = dirOverride;
   }
@@ -269,6 +274,7 @@ class DriveService {
           uploadMedia: Media(Stream.value(bytes), bytes.length),
         );
       }
+      lastSyncTime = DateTime.now();
       return const SyncResult(true);
     } catch (e) {
       return SyncResult(false, 'Upload error: $e');
@@ -312,6 +318,7 @@ class DriveService {
       target.attOffDay = data.attOffDay;
       target.attRotation = data.attRotation;
 
+      lastSyncTime = DateTime.now();
       return const SyncResult(true);
     } catch (e) {
       return SyncResult(false, 'Download error: $e');

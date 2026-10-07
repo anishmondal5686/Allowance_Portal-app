@@ -129,20 +129,25 @@ extension ModernThemeData on ThemeData {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 1,
+        elevation: 0,
         color: scheme.surface,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
         shadowColor: scheme.shadow.withValues(alpha: 0.08),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -151,19 +156,19 @@ extension ModernThemeData on ThemeData {
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.error, width: 1.5),
         ),
         labelStyle: TextStyle(color: scheme.onSurfaceVariant),
@@ -181,7 +186,7 @@ extension ModernThemeData on ThemeData {
         style: FilledButton.styleFrom(
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           elevation: 0,
@@ -191,7 +196,7 @@ extension ModernThemeData on ThemeData {
         style: OutlinedButton.styleFrom(
           foregroundColor: scheme.primary,
           side: BorderSide(color: scheme.primary, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
@@ -199,13 +204,13 @@ extension ModernThemeData on ThemeData {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface, fontSize: 14),
         actionTextColor: scheme.primary,
@@ -227,7 +232,7 @@ extension ModernThemeData on ThemeData {
         space: 24,
       ),
       listTileTheme: ListTileThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         tileColor: scheme.surfaceContainerLow,
         selectedTileColor: scheme.primaryContainer,
@@ -235,7 +240,7 @@ extension ModernThemeData on ThemeData {
         textColor: scheme.onSurface,
       ),
       popupMenuTheme: PopupMenuThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         color: scheme.surface,
         elevation: 8,
         labelTextStyle: WidgetStateProperty.resolveWith((states) =>
@@ -250,7 +255,7 @@ extension ModernThemeData on ThemeData {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 2,
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -264,7 +269,7 @@ extension ModernThemeData on ThemeData {
           side: WidgetStateProperty.resolveWith((states) =>
             states.contains(WidgetState.selected) ? BorderSide.none : BorderSide(color: scheme.outlineVariant),
           ),
-          shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
         ),
       ),

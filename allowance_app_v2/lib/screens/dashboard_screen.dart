@@ -2,12 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -65,9 +68,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Set<String> _savedMonths = {};
 
   static const _designationOptions = [
-    ('BERTHING PILOT', Icons.directions_boat_outlined),
-    ('DOCK PILOT', Icons.anchor_outlined),
-    ('ADM', Icons.supervisor_account_outlined),
+    ('BERTHING PILOT', LucideIcons.ship),
+    ('DOCK PILOT', LucideIcons.anchor),
+    ('ADM', LucideIcons.contact),
   ];
 
   String _normalizeDesignation(String d) {
@@ -366,7 +369,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   int get _movementCount =>
       AllowanceCalculator.movementsForMonth(widget.claimData).length;
-  int get _attendanceCount {
+
+  /// Human label for the selected claim month, e.g. 'August 2026'.
+  String get _monthLabel {
+    final name = MasterData.monthNames[_selectedMonth - 1];
+    return '${name[0]}${name.substring(1).toLowerCase()} $_selectedYear';
+  }  int get _attendanceCount {
     const working = {'N', 'E', 'M', 'P', 'BOOKED'};
     var count = 0;
     AllowanceCalculator.effectiveAttShifts(widget.claimData)
@@ -381,21 +389,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return count;
   }
 
-  Widget _buildSummarySection(ColorScheme scheme) {
-    final summary = AllowanceCalculator.computeSummary(widget.claimData);
+  Widget _buildSummaryBody(ColorScheme scheme, ClaimSummary summary) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SummaryHeroCard(
-          grandTotal: summary.grandTotal,
-          activeClaims: summary.lines.length,
-          movements: _movementCount,
-          workingDays: _attendanceCount,
-        )
-            .animate()
-            .fade(duration: 400.ms)
-            .slideY(begin: 0.1, end: 0),
-        const SizedBox(height: 12),
         if (summary.lines.isEmpty)
           Text(
             'No payable claim rows yet. Enter movements to start.',
@@ -448,19 +445,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static IconData _kpiIconFor(String key) {
     switch (key) {
       case 'length':
-        return Icons.straighten;
+        return LucideIcons.ruler;
       case 'cold':
-        return Icons.ac_unit;
+        return LucideIcons.snowflake;
       case 'nightact':
-        return Icons.dark_mode_outlined;
+        return LucideIcons.moonStar;
       case 'lock':
-        return Icons.lock_outline;
+        return LucideIcons.lock;
       case 'navigation':
-        return Icons.nightlight_round;
+        return LucideIcons.navigation;
       case 'weightage':
-        return Icons.hourglass_bottom;
+        return LucideIcons.hourglass;
       default:
-        return Icons.currency_rupee;
+        return LucideIcons.indianRupee;
     }
   }
 
@@ -618,6 +615,7 @@ _showSnack('Loaded $label');
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final summary = AllowanceCalculator.computeSummary(widget.claimData);
 
     return PopScope(
       canPop: !_dirty,
@@ -630,17 +628,17 @@ _showSnack('Loaded $label');
         title: const Text('Allowance Portal'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.update),
+            icon: const Icon(LucideIcons.refreshCw),
             tooltip: 'Check for updates',
             onPressed: () => _checkForUpdate(manual: true),
           ),
           IconButton(
-            icon: const Icon(Icons.save_outlined),
+            icon: const Icon(LucideIcons.save),
             tooltip: 'Save to this device',
             onPressed: _saveLocal,
           ),
           IconButton(
-            icon: const Icon(Icons.palette_outlined),
+            icon: const Icon(LucideIcons.palette),
             tooltip: 'Theme',
             onPressed: _showThemePicker,
           ),
@@ -664,6 +662,16 @@ _showSnack('Loaded $label');
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _WalletHeroCard(
+                summary: summary,
+                movements: _movementCount,
+                workingDays: _attendanceCount,
+                monthLabel: _monthLabel,
+              )
+                  .animate()
+                  .fade(duration: 400.ms)
+                  .slideY(begin: 0.08, end: 0),
+              const SizedBox(height: 12),
               _ModernCard(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
                 child: _ModernMonthPicker(
@@ -673,7 +681,10 @@ _showSnack('Loaded $label');
                   onMonthChanged: (v) => _changeMonth(v, _selectedYear),
                   onYearChanged: (v) => _changeMonth(_selectedMonth, v),
                 ),
-              ),
+              )
+                  .animate(delay: 60.ms)
+                  .fade(duration: 400.ms)
+                  .slideY(begin: 0.08, end: 0),
               if (_isProfileIncomplete) ...[
                 const SizedBox(height: 12),
                 _ProfileHint(onTap: _scrollToMasterData),
@@ -682,20 +693,26 @@ _showSnack('Loaded $label');
               const _SectionHeader(
                 title: 'Daily Actions',
                 subtitle: 'Log movements, review the claim, mark attendance',
-                icon: Icons.bolt_rounded,
+                icon: LucideIcons.zap,
               ),
               const SizedBox(height: 16),
               _DailyActionTiles(
                 onMovements: _openMovements,
                 onSummary: _openSummary,
                 onAttendance: _openAttendance,
-              ),
+                movementsCaption: '$_movementCount jobs',
+                summaryCaption: 'Review & print',
+                attendanceCaption: '$_attendanceCount days',
+              )
+                  .animate(delay: 120.ms)
+                  .fade(duration: 400.ms)
+                  .slideY(begin: 0.08, end: 0),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.ios_share_rounded),
+                      icon: const Icon(LucideIcons.upload),
                       label: const Text('Export Data'),
                       onPressed: _exportJson,
                     ),
@@ -703,7 +720,7 @@ _showSnack('Loaded $label');
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.file_download_outlined),
+                      icon: const Icon(LucideIcons.download),
                       label: const Text('Import Data'),
                       onPressed: _importJson,
                     ),
@@ -711,18 +728,18 @@ _showSnack('Loaded $label');
                 ],
               ),
               const SizedBox(height: 24),
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Monthly Summary',
                 subtitle: 'Claim totals & active allowances',
-                icon: Icons.summarize_outlined,
+                icon: LucideIcons.pieChart,
               ),
               const SizedBox(height: 16),
-              _buildSummarySection(scheme),
+              _buildSummaryBody(scheme, summary),
               const SizedBox(height: 24),
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Sun Times',
                 subtitle: 'Sunrise & sunset for any date',
-                icon: Icons.wb_sunny_outlined,
+                icon: LucideIcons.sun,
               ),
               const SizedBox(height: 16),
               _SunTimesCard(
@@ -730,10 +747,10 @@ _showSnack('Loaded $label');
                 onPickDate: (d) => setState(() => _sunDate = d),
               ),
               const SizedBox(height: 24),
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Master Data',
                 subtitle: 'Enter your profile and pay details',
-                icon: Icons.person_outline,
+                icon: LucideIcons.user,
               ),
               const SizedBox(height: 16),
               _ModernCard(
@@ -744,7 +761,7 @@ _showSnack('Loaded $label');
                       name: 'name',
                       decoration: InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                        prefixIcon: Icon(LucideIcons.user),
                       ),
                       inputFormatters: const [_UpperCaseTextFormatter()],
                       textCapitalization: TextCapitalization.words,
@@ -755,7 +772,7 @@ _showSnack('Loaded $label');
                       name: 'designation',
                       decoration: const InputDecoration(
                         labelText: 'Designation',
-                        prefixIcon: Icon(Icons.work_outline),
+                        prefixIcon: Icon(LucideIcons.briefcase),
                       ),
                       items: _designationOptions
                           .map((e) => DropdownMenuItem(
@@ -790,7 +807,7 @@ _showSnack('Loaded $label');
                         name: 'pay',
                         decoration: InputDecoration(
                           labelText: 'Consolidated Pay (₹)',
-                          prefixIcon: Icon(Icons.currency_rupee),
+                          prefixIcon: Icon(LucideIcons.indianRupee),
                         ),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -814,7 +831,7 @@ _showSnack('Loaded $label');
                         name: 'basic',
                         decoration: InputDecoration(
                           labelText: 'Basic Pay (₹)',
-                          prefixIcon: Icon(Icons.payments_outlined),
+                          prefixIcon: Icon(LucideIcons.wallet),
                         ),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -836,7 +853,7 @@ _showSnack('Loaded $label');
                         name: 'ada',
                         decoration: InputDecoration(
                           labelText: 'ADA (₹)',
-                          prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                          prefixIcon: Icon(LucideIcons.landmark),
                         ),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -849,7 +866,7 @@ _showSnack('Loaded $label');
                       name: 'employee',
                       decoration: InputDecoration(
                         labelText: _currentDesignation == 'BERTHING PILOT' ? 'Employee ID' : 'DPS No.',
-                        prefixIcon: Icon(Icons.credit_card_outlined),
+                        prefixIcon: Icon(LucideIcons.creditCard),
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -862,7 +879,7 @@ _showSnack('Loaded $label');
                       name: 'sapEmployeeId',
                       decoration: InputDecoration(
                         labelText: 'SAP Employee ID',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                        prefixIcon: Icon(LucideIcons.contact),
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -875,7 +892,7 @@ _showSnack('Loaded $label');
                       name: 'bill',
                       decoration: InputDecoration(
                         labelText: 'Bill Abstract No.',
-                        prefixIcon: Icon(Icons.receipt_outlined),
+                        prefixIcon: Icon(LucideIcons.receipt),
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -888,7 +905,7 @@ _showSnack('Loaded $label');
                       onPressed: () {
                         if (_saveMaster()) _markClean();
                       },
-                      icon: const Icon(Icons.save_rounded),
+                      icon: const Icon(LucideIcons.save),
                       label: const Text('Save Master Data'),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),
@@ -929,7 +946,12 @@ class _ProfileHint extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.tertiaryContainer,
-      borderRadius: BorderRadius.circular(16),
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 16,
+          cornerSmoothing: 0.6,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -937,7 +959,7 @@ class _ProfileHint extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
           child: Row(
             children: [
-              Icon(Icons.info_outline, color: scheme.onTertiaryContainer),
+              Icon(LucideIcons.info, color: scheme.onTertiaryContainer),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -948,7 +970,8 @@ class _ProfileHint extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: scheme.onTertiaryContainer),
+              Icon(LucideIcons.chevronRight,
+                  color: scheme.onTertiaryContainer),
             ],
           ),
         ),
@@ -957,21 +980,25 @@ class _ProfileHint extends StatelessWidget {
   }
 }
 
-/// The three things a pilot opens every day. Movements leads because it is
-/// entered once per job; the other two are reviews. The row count adapts so
-/// the tiles stay readable on a narrow phone and use the width on a tablet.
-/// The three things a pilot opens every day, as one equal row of tiles.
+/// The three things a pilot opens every day, as one equal row of squircle
+/// tiles with a live caption each (jobs logged, claim state, roster days).
 /// Movements leads by colour rather than by size so all three stay the same
 /// shape and nothing reflows when a label wraps to two lines.
 class _DailyActionTiles extends StatelessWidget {
   final VoidCallback onMovements;
   final VoidCallback onSummary;
   final VoidCallback onAttendance;
+  final String movementsCaption;
+  final String summaryCaption;
+  final String attendanceCaption;
 
   const _DailyActionTiles({
     required this.onMovements,
     required this.onSummary,
     required this.onAttendance,
+    required this.movementsCaption,
+    required this.summaryCaption,
+    required this.attendanceCaption,
   });
 
   @override
@@ -982,8 +1009,9 @@ class _DailyActionTiles extends StatelessWidget {
         children: [
           Expanded(
             child: _ActionTile(
-              icon: Icons.directions_boat_rounded,
+              icon: LucideIcons.ship,
               label: 'Movements',
+              caption: movementsCaption,
               onTap: onMovements,
               primary: true,
             ),
@@ -991,16 +1019,18 @@ class _DailyActionTiles extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: _ActionTile(
-              icon: Icons.receipt_long_rounded,
+              icon: LucideIcons.receipt,
               label: 'Claim Summary',
+              caption: summaryCaption,
               onTap: onSummary,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: _ActionTile(
-              icon: Icons.calendar_month_rounded,
+              icon: LucideIcons.calendarDays,
               label: 'Attendance',
+              caption: attendanceCaption,
               onTap: onAttendance,
             ),
           ),
@@ -1013,12 +1043,14 @@ class _DailyActionTiles extends StatelessWidget {
 class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String caption;
   final VoidCallback onTap;
   final bool primary;
 
   const _ActionTile({
     required this.icon,
     required this.label,
+    required this.caption,
     required this.onTap,
     this.primary = false,
   });
@@ -1031,7 +1063,12 @@ class _ActionTile extends StatelessWidget {
     final foreground = primary ? scheme.onPrimary : scheme.onSurface;
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(16),
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 20,
+          cornerSmoothing: 0.6,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -1054,6 +1091,16 @@ class _ActionTile extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                 ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                caption,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: foreground.withValues(alpha: 0.75),
+                    ),
               ),
             ],
           ),
@@ -1082,9 +1129,14 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
+          decoration: ShapeDecoration(
             color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
+            shape: SmoothRectangleBorder(
+              borderRadius: SmoothBorderRadius(
+                cornerRadius: 12,
+                cornerSmoothing: 0.6,
+              ),
+            ),
           ),
           child: Icon(icon, color: scheme.onPrimaryContainer, size: 24),
         ),
@@ -1095,9 +1147,10 @@ class _SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: GoogleFonts.poppins(
+                  textStyle: Theme.of(context).textTheme.headlineSmall,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -1126,9 +1179,19 @@ class _ModernCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 20,
+          cornerSmoothing: 0.6,
+        ),
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: padding,
         child: child,
@@ -1219,17 +1282,21 @@ class _ModernMonthPicker extends StatelessWidget {
   }
 }
 
-class _SummaryHeroCard extends StatelessWidget {
-  final double grandTotal;
-  final int activeClaims;
+/// E-wallet balance hero: a gradient squircle card with the claim month, the
+/// grand total in Poppins, the active-claims pill and roster mini-stats.
+/// Keeps the 'Grand Total' label and 'Active claims · N' pill the summary
+/// tests assert on.
+class _WalletHeroCard extends StatelessWidget {
+  final ClaimSummary summary;
   final int movements;
   final int workingDays;
+  final String monthLabel;
 
-  const _SummaryHeroCard({
-    required this.grandTotal,
-    required this.activeClaims,
+  const _WalletHeroCard({
+    required this.summary,
     required this.movements,
     required this.workingDays,
+    required this.monthLabel,
   });
 
   @override
@@ -1240,75 +1307,126 @@ class _SummaryHeroCard extends StatelessWidget {
       locale: 'en_IN',
       symbol: '₹',
       decimalDigits: 0,
-    ).format(grandTotal);
+    ).format(summary.grandTotal);
+    final onHero = scheme.onPrimaryContainer;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: scheme.primaryContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Material(
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 24,
+          cornerSmoothing: 0.6,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              scheme.primaryContainer,
+              scheme.secondaryContainer,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Grand Total',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: scheme.onPrimaryContainer.withValues(alpha: 0.75),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          monthLabel.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: onHero.withValues(alpha: 0.75),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Grand Total',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: onHero.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          amount,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: GoogleFonts.poppins(
+                            textStyle: textTheme.displaySmall,
+                            color: onHero,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    amount,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: textTheme.headlineMedium?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: ShapeDecoration(
+                      color: scheme.primary.withValues(alpha: 0.85),
+                      shape: SmoothRectangleBorder(
+                        borderRadius: SmoothBorderRadius(
+                          cornerRadius: 16,
+                          cornerSmoothing: 0.6,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Active claims · $activeClaims',
-                    style: textTheme.labelMedium?.copyWith(
+                    child: Icon(
+                      LucideIcons.wallet,
+                      size: 28,
                       color: scheme.onPrimary,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$movements movements · $workingDays working days',
-                  textAlign: TextAlign.right,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.75),
-                  ),
-                ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Active claims · ${summary.lines.length}',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '$movements jobs · $workingDays days',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: onHero.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1354,8 +1472,11 @@ class _KpiCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       elevation: 0,
       color: scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 20,
+          cornerSmoothing: 0.6,
+        ),
         side: BorderSide(
           color: scheme.outlineVariant.withValues(alpha: 0.3),
         ),
@@ -1371,9 +1492,14 @@ class _KpiCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    shape: SmoothRectangleBorder(
+                      borderRadius: SmoothBorderRadius(
+                        cornerRadius: 10,
+                        cornerSmoothing: 0.6,
+                      ),
+                    ),
                   ),
                   child: Icon(icon, size: 20, color: accent),
                 ),
@@ -1396,7 +1522,8 @@ class _KpiCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.fade,
               softWrap: false,
-              style: textTheme.titleLarge?.copyWith(
+              style: GoogleFonts.poppins(
+                textStyle: textTheme.titleLarge,
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w700,
               ),
@@ -1584,10 +1711,18 @@ class _SunTimesCard extends StatelessWidget {
         DateTime.now().day == date.day;
 
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(
+          cornerRadius: 20,
+          cornerSmoothing: 0.6,
+        ),
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
         onTap: () async {
           final picked = await showDatePicker(
             context: context,
@@ -1603,7 +1738,7 @@ class _SunTimesCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.calendar_today_outlined,
+                  Icon(LucideIcons.calendarDays,
                       size: 16, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Flexible(
@@ -1616,7 +1751,7 @@ class _SunTimesCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.edit_calendar_outlined,
+                  Icon(LucideIcons.calendarCheck,
                       size: 18, color: scheme.primary),
                 ],
               ),
@@ -1625,7 +1760,7 @@ class _SunTimesCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _SunTimeItem(
-                      icon: Icons.wb_twilight_outlined,
+                      icon: LucideIcons.sunrise,
                       label: 'Sunrise',
                       time: sunrise,
                       color: const Color(0xFFF59E0B),
@@ -1634,7 +1769,7 @@ class _SunTimesCard extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _SunTimeItem(
-                      icon: Icons.nightlight_round_outlined,
+                      icon: LucideIcons.sunset,
                       label: 'Sunset',
                       time: sunset,
                       color: const Color(0xFF6366F1),
@@ -1667,9 +1802,14 @@ class _SunTimeItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        shape: SmoothRectangleBorder(
+          borderRadius: SmoothBorderRadius(
+            cornerRadius: 14,
+            cornerSmoothing: 0.6,
+          ),
+        ),
       ),
       child: Column(
         children: [
@@ -1677,10 +1817,13 @@ class _SunTimeItem extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             time,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              textStyle: Theme.of(context).textTheme.headlineSmall,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
           const SizedBox(height: 4),
           Text(

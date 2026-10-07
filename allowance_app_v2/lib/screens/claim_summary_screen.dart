@@ -307,6 +307,10 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
                             'Length Allowance (ADM Duty)'),
                       (OfficialForm.nightActWeightage,
                           'Night Act & Night Weightage Allowance'),
+                      if (!widget.claimData.master.isAdm &&
+                          widget.claimData.actingAdmDates.isNotEmpty)
+                        (OfficialForm.nightActWeightageAdmDuty,
+                            'Night Act & Night Weightage Allowance (ADM Duty)'),
                       (OfficialForm.lockToApproachJetty,
                           'Lock to Approach Jetty Allowance'),
                       if (!widget.claimData.master.isAdm &&
@@ -315,6 +319,10 @@ class _ClaimSummaryScreenState extends State<ClaimSummaryScreen> {
                             'Lock to Approach Jetty Allowance (ADM Duty)'),
                       (OfficialForm.nightNavigation,
                           'Night Navigation Allowance'),
+                      if (!widget.claimData.master.isAdm &&
+                          widget.claimData.actingAdmDates.isNotEmpty)
+                        (OfficialForm.nightNavigationAdmDuty,
+                            'Night Navigation Allowance (ADM Duty)'),
                     ])
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),

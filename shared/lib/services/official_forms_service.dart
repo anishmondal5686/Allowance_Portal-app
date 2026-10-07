@@ -376,10 +376,11 @@ class OfficialFormsService {
     return 'Dock Pilot';
   }
 
-  /// Bottom-right signature label. ADM (or ADM-duty) forms sign as the
-  /// Assistant Dock Master; ordinary pilot forms keep "Signature of the".
-  static String _signatureLabel(bool admDuty) =>
-      admDuty ? 'Signature of ADM' : 'Signature of the';
+  /// Bottom-right signature label. Only a real ADM signs as the Assistant
+  /// Dock Master; every other claimant — including a pilot on an acting-ADM
+  /// duty form — keeps "Signature of the" with their own designation.
+  static String _signatureLabel(bool isAdm) =>
+      isAdm ? 'Signature of ADM' : 'Signature of the';
 
   static const _lcXs = [45.0, 70.5, 131.2, 207.0, 387.8, 448.5, 498.8, 549.8];
   static const _lcRows = [
@@ -1063,9 +1064,9 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [200.0, 390.0], 794.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Signature of ADM', [390.0, 572.7], 780.0, 8.25,
+      w.add(_cell(f, _signatureLabel(m.isAdm), [390.0, 572.7], 780.0, 8.25,
           bold: true));
-      w.add(_cell(f, 'Asst. Dock Master', [390.0, 572.7], 794.0, 8.25,
+      w.add(_cell(f, _signatureRole(m), [390.0, 572.7], 794.0, 8.25,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -1435,9 +1436,8 @@ class OfficialFormsService {
           625.7, 8.62,
           bold: true));
       final isAdmDuty = admDuty || data.master.isAdm;
-      final sigLine1 = _signatureLabel(isAdmDuty);
-      final sigLine2 =
-          admDuty ? 'Asst. Dock Master' : _signatureRole(data.master);
+      final sigLine1 = _signatureLabel(data.master.isAdm);
+      final sigLine2 = _signatureRole(data.master);
       w.add(_cell(f, 'Manager', [39.7, 169.0], 670.7, 8.62, bold: true));
       w.add(_cell(f, 'Marine Ops. Division,', [39.7, 169.0], 684.2, 8.62,
           bold: true));
@@ -1652,9 +1652,9 @@ class OfficialFormsService {
   }
 
   static void _ajCells(List<pw.Widget> w, _Fonts f, List<String> cells,
-      List<List<double>> cols, double y) {
+      List<List<double>> cols, double y, {Map<int, double>? sizes}) {
     for (var c = 0; c < cols.length; c++) {
-      w.add(_cell(f, cells[c], cols[c], y, 8.25));
+      w.add(_cell(f, cells[c], cols[c], y, sizes?[c] ?? 8.25));
     }
   }
 
@@ -1821,11 +1821,12 @@ class OfficialFormsService {
       }
       for (var i = 0; i < 12; i++) {
         final mv = i < a.length ? a[i] : null;
+        final rd = mv == null ? null : _rowDate(mv, 8.25, _ajNavCols[1]);
         final cells = mv == null
             ? ['', '', '', '', '', '', '', '']
             : [
                 '${p * 12 + i + 1}.',
-                mv.date,
+                rd!.text,
                 mv.vessel,
                 mv.loa,
                 mv.beam,
@@ -1833,7 +1834,8 @@ class OfficialFormsService {
                 mv.end,
                 sunStr(mv.date),
               ];
-        _ajCells(w, f, cells, _ajNavCols, 272 + i * 14);
+        _ajCells(w, f, cells, _ajNavCols, 272 + i * 14,
+            sizes: rd == null ? null : {1: rd.size});
       }
       w.add(_txt(
           f, '(B)  INWARD MOVEMENT ALLOWANCES (CODE \u2013 097)', 39.8, 462,
@@ -1857,11 +1859,12 @@ class OfficialFormsService {
       }
       for (var i = 0; i < 10; i++) {
         final mv = i < b.length ? b[i] : null;
+        final rd = mv == null ? null : _rowDate(mv, 8.25, _ajNavCols[1]);
         final cells = mv == null
             ? ['', '', '', '', '', '', '', '']
             : [
                 '${p * 10 + i + 1}.',
-                mv.date,
+                rd!.text,
                 mv.vessel,
                 mv.loa,
                 mv.beam,
@@ -1869,7 +1872,8 @@ class OfficialFormsService {
                 mv.end,
                 sunStr(mv.date),
               ];
-        _ajCells(w, f, cells, _ajNavCols, 506 + i * 14);
+        _ajCells(w, f, cells, _ajNavCols, 506 + i * 14,
+            sizes: rd == null ? null : {1: rd.size});
       }
       final admByRate = <int, int>{};
       for (final mv in a) {
@@ -1904,9 +1908,9 @@ class OfficialFormsService {
           bold: true));
       w.add(_cell(f, 'Haldia Dock Complex', [195.0, 350.2], 781, 8.25,
           bold: true));
-      w.add(_cell(f, 'Signature of ADM', [350.2, 555.5], 768, 8.25,
+      w.add(_cell(f, _signatureLabel(m.isAdm), [350.2, 555.5], 768, 8.25,
           bold: true));
-      w.add(_cell(f, 'Asst. Dock Master', [350.2, 555.5], 781, 8.25,
+      w.add(_cell(f, _signatureRole(m), [350.2, 555.5], 781, 8.25,
           bold: true));
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -1967,7 +1971,7 @@ class OfficialFormsService {
     if (t != null) {
       sun = '${_minToHHMM(t.$1)} / ${_minToHHMM(t.$2)}';
     }
-    final rd = _rowDate(mv, 8.25, _navCols[2]);
+    final rd = _rowDate(mv, 8.25, _navCols[1]);
     return [
       '$sl',
       rd.text,

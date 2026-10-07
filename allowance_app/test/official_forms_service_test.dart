@@ -429,6 +429,42 @@ void main() {
       expect(admDuty.length, greaterThan(500));
     });
 
+    test('ADM-duty navigation form dumps the cross-month date range',
+        () async {
+      // A 01/08/2026 03:02 movement belongs to the 31/07 night shift, so it
+      // renders on the July claim with a 31/07-01/08/26 range in its DATE
+      // cell. Dumped for PyMuPDF verification (Dart cannot read PDF text).
+      final data = ClaimData(
+        master: MasterData(
+            month: 'JULY, 2026',
+            designation: 'Dock Pilot',
+            basic: '89000',
+            ada: '43000'),
+        attShifts: {'2026-07-31': 'N'},
+        attLocked: true,
+        actingAdmDates: ['2026-07-31'],
+      );
+      data.movements.add(Movement(
+          date: '01/08/2026',
+          vessel: 'MV ADM NAV',
+          from: 'LOCK',
+          to: 'OFF',
+          start: '03:02',
+          end: '04:40',
+          loa: '229',
+          beam: '32',
+          allowances: ['navigation'],
+          navigationTypes: ['outward-210']));
+      final bytes = await OfficialFormsService.buildFormPdf(
+          OfficialForm.nightNavigationAdmDuty, data);
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+      expect(bytes.length, greaterThan(500));
+      final dir =
+          Directory(r'C:\Users\way2m\AppData\Local\Temp\opencode\rowdate');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      File('${dir.path}\\adm_nav_cross_month.pdf').writeAsBytesSync(bytes);
+    });
+
     ClaimData actingBpData() {
       final data = ClaimData(
         master: MasterData(

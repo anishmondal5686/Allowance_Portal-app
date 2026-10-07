@@ -23,7 +23,7 @@ class AllowanceApp extends StatefulWidget {
 
 class _AllowanceAppState extends State<AllowanceApp>
     with WidgetsBindingObserver {
-  static const _appVersion = '2.0.36';
+  static const _appVersion = '2.0.37';
   final ClaimData _claimData = ClaimData();
   final DriveService _driveService = DriveService();
   final ThemeStore _themeStore = ThemeStore();

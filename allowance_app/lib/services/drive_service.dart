@@ -43,13 +43,22 @@ class DriveService {
   String? _userFolderId;
   Future<io.Directory> Function()? _dirOverride;
 
+  /// Overrides only the legacy documents-root scan used by
+  /// [loadLocalBackup]'s fallback and [migrateDocumentsRootFiles], so tests
+  /// can drive the migration against a scratch directory.
+  Future<io.Directory> Function()? _legacyDirOverride;
+
   /// Wall-clock time of the last successful Drive transfer in either
   /// direction (upload or download). Null when nothing has synced yet this
   /// run; drives the 'Last synced' line on the dashboard Drive card.
   DateTime? lastSyncTime;
 
-  DriveService({Future<io.Directory> Function()? dirOverride}) {
+  DriveService({
+    Future<io.Directory> Function()? dirOverride,
+    Future<io.Directory> Function()? legacyDirOverride,
+  }) {
     _dirOverride = dirOverride;
+    _legacyDirOverride = legacyDirOverride;
   }
 
   static const _fileNameFallback = 'claim.json';
@@ -317,6 +326,9 @@ class DriveService {
       target.attLocked = data.attLocked;
       target.attOffDay = data.attOffDay;
       target.attRotation = data.attRotation;
+      target.actingAdmDates
+        ..clear()
+        ..addAll(data.actingAdmDates);
 
       lastSyncTime = DateTime.now();
       return const SyncResult(true);
@@ -325,12 +337,14 @@ class DriveService {
     }
   }
 
-  Future<io.Directory> _localUserDir() async {
+  Future<io.Directory> _localUserDir() => _userDirFor(_userKey);
+
+  Future<io.Directory> _userDirFor(String key) async {
     final override = _dirOverride;
     if (override != null) return override();
     final base = await getApplicationDocumentsDirectory();
     final dir = io.Directory('${base.path}${io.Platform.pathSeparator}'
-        '$_appFolderName${io.Platform.pathSeparator}$_userKey');
+        '$_appFolderName${io.Platform.pathSeparator}$key');
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
@@ -439,7 +453,9 @@ class DriveService {
       // documents dir. Copy any found file into the user folder so that
       // subsequent saves and loads line up.
       if (file == null || !await file.exists()) {
-        final legacyDir = await getApplicationDocumentsDirectory();
+        final legacyDir = _legacyDirOverride != null
+            ? await _legacyDirOverride!()
+            : await getApplicationDocumentsDirectory();
         var legacy = fname != null
             ? io.File('${legacyDir.path}${io.Platform.pathSeparator}$fname')
             : await _mostRecentLocalFile(legacyDir);
@@ -475,5 +491,216 @@ class DriveService {
       }
     }
     return newest;
+  }
+  // ---- v2 additions: migration + reconcile + bulk transfer ---------------
+
+  /// Copies the local backup file for [month] to a sibling
+  /// '… backup STAMP.json' that [listSavedMonths] and the pruner ignore,
+  /// so history views stay clean. Returns the backup path, or null when
+  /// there is no local file to protect. This is the guard behind every
+  /// fetch-from-Drive path: a destructive download can never destroy the
+  /// device copy beyond recovery.
+  Future<String?> createConflictBackup({String? month}) async {
+    try {
+      final dir = await _localUserDir();
+      final fname = month != null && month.trim().isNotEmpty
+          ? monthFileName(month)
+          : null;
+      final file = fname != null
+          ? io.File('${dir.path}${io.Platform.pathSeparator}$fname')
+          : await _mostRecentLocalFile(dir);
+      if (file == null || !await file.exists()) return null;
+      final now = DateTime.now();
+      final stamp = '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')} '
+          '${now.hour.toString().padLeft(2, '0')}'
+          '${now.minute.toString().padLeft(2, '0')}';
+      final base = file.uri.pathSegments.last;
+      final backupName = base.endsWith('.json')
+          ? '${base.substring(0, base.length - 5)} backup $stamp.json'
+          : '$base backup $stamp.json';
+      final backup = io.File(
+          '${dir.path}${io.Platform.pathSeparator}$backupName');
+      await file.copy(backup.path);
+      return backup.path;
+    } catch (e) {
+      debugPrint('Conflict backup error: $e');
+      return null;
+    }
+  }
+
+  /// Modification time of the local backup file for [month], or null when
+  /// no local file exists. Feed this and [driveModifiedTime] into the sign-in
+  /// reconcile dialog so the user picks with real timestamps instead of
+  /// guessing which copy is newer.
+  Future<DateTime?> localBackupModifiedTime({String? month}) async {
+    try {
+      final dir = await _localUserDir();
+      final fname = month != null && month.trim().isNotEmpty
+          ? monthFileName(month)
+          : null;
+      final file = fname != null
+          ? io.File('${dir.path}${io.Platform.pathSeparator}$fname')
+          : await _mostRecentLocalFile(dir);
+      if (file == null || !await file.exists()) return null;
+      return await file.lastModified();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Modification time of the Drive file for [fileName] (null when the file
+  /// does not exist, the service is offline or not signed in).
+  Future<DateTime?> driveModifiedTime(String fileName) async {
+    if (_driveApi == null) return null;
+    final parent = await _ensureUserFolder();
+    if (parent == null) return null;
+    try {
+      final response = await _driveApi!.files.list(
+        q: "name='$fileName' and trashed=false and '$parent' in parents",
+        spaces: 'drive',
+        $fields: 'files(modifiedTime)',
+      );
+      final files = response.files ?? [];
+      return files.isEmpty ? null : files.first.modifiedTime?.toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// One-time storage migration for users coming from the pre-2.0.38
+  /// [LocalStore] era, whose monthly claims were written directly into the
+  /// app documents directory. Copies every month-shaped file into the user
+  /// folder unless one already exists there. Copies, never moves: the
+  /// originals stay untouched as a safety net.
+  /// Only [legacyDirOverride] (per-call, tests) beats the constructor's
+  /// legacy override, which otherwise drives this scan in production.
+  Future<int> migrateDocumentsRootFiles({io.Directory? legacyDirOverride}) async {
+    var moved = 0;
+    try {
+      final userDir = await _localUserDir();
+      final legacyDir = legacyDirOverride ??
+          (_legacyDirOverride != null
+              ? await _legacyDirOverride!()
+              : await getApplicationDocumentsDirectory());
+      if (!await legacyDir.exists()) return 0;
+      await for (final entity in legacyDir.list()) {
+        if (entity is! io.File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (!name.endsWith('.json') || name == _fileNameFallback) continue;
+        if (monthKeyFromFileName(name) == null) continue;
+        final targetPath =
+            '${userDir.path}${io.Platform.pathSeparator}$name';
+        final target = io.File(targetPath);
+        if (await target.exists()) continue;
+        await entity.copy(targetPath);
+        moved++;
+      }
+    } catch (e) {
+      debugPrint('Migrate documents root files error: $e');
+    }
+    return moved;
+  }
+
+  /// Moves month files saved under the signed-out 'local' pseudo-account
+  /// into the signed-in user folder after [signIn] succeeds. Copies each
+  /// missing month file; never deletes the originals. No-op when the app is
+  /// not signed in or the key is still 'local'. Local file operation only.
+  Future<int> promoteLocalMonthsToUserFolder() async {
+    final signedKey = _userKey;
+    if (userKeyFor('') == signedKey) return 0;
+    try {
+      final localDir = await _userDirFor('local');
+      final userDir = await _userDirFor(signedKey);
+      if (!await localDir.exists()) return 0;
+      var promoted = 0;
+      await for (final entity in localDir.list()) {
+        if (entity is! io.File || !entity.path.endsWith('.json')) continue;
+        final name = entity.uri.pathSegments.last;
+        if (monthKeyFromFileName(name) == null) continue;
+        final targetPath =
+            '${userDir.path}${io.Platform.pathSeparator}$name';
+        final target = io.File(targetPath);
+        if (await target.exists()) continue;
+        await entity.copy(targetPath);
+        promoted++;
+      }
+      return promoted;
+    } catch (e) {
+      debugPrint('Promote local months error: $e');
+      return 0;
+    }
+  }
+
+  /// Uploads every locally saved month to Drive. Returns (succeeded, total).
+  /// Used after a first sign-in so a never-synced device lands entirely in
+  /// the cloud, not just the currently open month.
+  Future<(int, int)> uploadAllMonths() async {
+    final months = await listSavedMonths();
+    var ok = 0;
+    for (final month in months) {
+      final data = await loadLocalBackup(month: month);
+      if (data == null) continue;
+      final result = await uploadClaim(data);
+      if (result.success) ok++;
+    }
+    return (ok, months.length);
+  }
+
+  /// Downloads every month file present in the user's Drive folder into the
+  /// local mirror, newest month first. Returns (succeeded, total). Intended
+  /// for a fresh install against an established account (the v1 migration
+  /// path): the local mirror is empty, so nothing on the device can lose.
+  Future<(int, int)> downloadAllMonthsFromDrive() async {
+    if (_driveApi == null) return const (0, 0);
+    final files = await listDriveFiles();
+    final monthFiles = [
+      for (final name in files)
+        if (monthKeyFromFileName(name) != null) name,
+    ];
+    monthFiles.sort((a, b) => monthKeyFromFileName(b)!
+        .compareTo(monthKeyFromFileName(a)!));
+    final scratch = ClaimData();
+    var ok = 0;
+    for (final name in monthFiles) {
+      final result = await downloadClaim(target: scratch, fileName: name);
+      if (!result.success) continue;
+      await saveLocalBackup(scratch);
+      ok++;
+    }
+    return (ok, monthFiles.length);
+  }
+
+  /// Downloads the Drive month file whose name parses to the newest month
+  /// key into the local mirror and returns its parsed claim, ready for the
+  /// caller to apply to the UI. Returns null when the Drive folder holds no
+  /// month files or the transfer fails.
+  Future<ClaimData?> newestDriveMonth() async {
+    if (_driveApi == null) return null;
+    final files = await listDriveFiles();
+    final monthFiles = [
+      for (final name in files)
+        if (monthKeyFromFileName(name) != null) name,
+    ];
+    if (monthFiles.isEmpty) return null;
+    monthFiles.sort((a, b) => monthKeyFromFileName(b)!
+        .compareTo(monthKeyFromFileName(a)!));
+    try {
+      final response = await _driveApi!.files.get(
+        await findExistingFileId(monthFiles.first) ?? '',
+        downloadOptions: DownloadOptions.fullMedia,
+      ) as Media?;
+      if (response == null) return null;
+      final jsonString = await response.stream.transform(utf8.decoder).join();
+      final data = ClaimData.fromJson(
+          jsonDecode(jsonString) as Map<String, dynamic>);
+      await saveLocalBackup(data);
+      lastSyncTime = DateTime.now();
+      return data;
+    } catch (e) {
+      debugPrint('Newest drive month error: $e');
+      return null;
+    }
   }
 }

@@ -19,7 +19,7 @@ import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/services/allowance_calculator.dart';
 import 'package:allowance_shared/services/update_service.dart';
-import 'package:allowance_app_v2/services/local_store.dart';
+import 'package:allowance_app_v2/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'attendance_screen.dart';
 import 'claim_summary_screen.dart';
@@ -41,16 +41,16 @@ class DashboardScreen extends StatefulWidget {
   final ModernThemeId themeId;
   final ValueChanged<ModernThemeId> onThemeChanged;
   final String appVersion;
-  final LocalStore? localStore;
+  final DriveService driveService;
 
   const DashboardScreen({
     super.key,
     required this.claimData,
+    required this.driveService,
     required this.onDataChanged,
     required this.themeId,
     required this.onThemeChanged,
     required this.appVersion,
-    this.localStore,
   });
 
   @override
@@ -66,7 +66,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _currentDesignation = '';
   late DateTime _sunDate;
 
-  late final LocalStore _localStore = widget.localStore ?? LocalStore();
+  /// True while a Drive transfer (sign-in reconcile, backup-all) is in
+  /// flight; swaps the card's buttons for a progress indicator.
+  bool _syncing = false;
+
+  /// Last sync outcome shown under the Drive card buttons.
+  String _syncStatus = '';
+
   Set<String> _savedMonths = {};
 
   static const _designationOptions = [
@@ -121,7 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _refreshSavedMonths() async {
     try {
-      final list = await _localStore.listSavedMonths();
+      final list = await widget.driveService.listSavedMonths();
       if (!mounted) return;
       setState(() => _savedMonths = list.toSet());
     } catch (_) {
@@ -308,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (formState == null) return;
       formState.save();
       widget.claimData.master = _masterFromForm();
-      await _localStore.save(widget.claimData);
+      await widget.driveService.saveLocalBackup(widget.claimData);
       widget.onDataChanged();
       _refreshSavedMonths();
       _markClean();
@@ -385,7 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           .convert(widget.claimData.toJson());
       final dir = await getTemporaryDirectory();
       final name = widget.claimData.master.month.isNotEmpty
-          ? LocalStore.monthFileName(widget.claimData.master.month)
+          ? DriveService.monthFileName(widget.claimData.master.month)
           : 'allowance-data.json';
       final file = File('${dir.path}${Platform.pathSeparator}$name');
       await file.writeAsString(jsonStr);
@@ -418,6 +424,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       widget.claimData.attLocked = data.attLocked;
       widget.claimData.attOffDay = data.attOffDay;
       widget.claimData.attRotation = data.attRotation;
+      // Acting-ADM dates belong to the claim history; dropping them here
+      // would silently erase that record from hand-carried imports.
+      widget.claimData.actingAdmDates
+        ..clear()
+        ..addAll(data.actingAdmDates);
       final parsed = MasterData.parseMonthYear(data.master.month);
       widget.claimData.attShifts = AllowanceCalculator.pruneFutureShifts(
           parsed == null
@@ -435,6 +446,311 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (e) {
       _showSnack('Import failed: invalid JSON');
     }
+  }
+
+  // ---- Drive sync ---------------------------------------------------------
+
+  /// Copies a freshly loaded claim into the live one and persists it, so
+  /// Drive restores, sign-in reconciles and month loads share one truth.
+  void _applyLoadedClaim(ClaimData data) {
+    _applyMaster(data.master);
+    widget.claimData.master = data.master;
+    widget.claimData.movements
+      ..clear()
+      ..addAll(data.movements);
+    widget.claimData.attShifts = data.attShifts;
+    widget.claimData.attManualDates = data.attManualDates;
+    widget.claimData.attLocked = data.attLocked;
+    widget.claimData.attOffDay = data.attOffDay;
+    widget.claimData.attRotation = data.attRotation;
+    widget.claimData.actingAdmDates
+      ..clear()
+      ..addAll(data.actingAdmDates);
+    widget.onDataChanged();
+    _refreshSavedMonths();
+    if (mounted) setState(() {});
+    _markClean();
+  }
+
+  Future<void> _syncToDrive() async {
+    setState(() => _syncing = true);
+    try {
+      final masterSaved = _saveMaster();
+      final result = await widget.driveService.uploadClaim(widget.claimData);
+      await widget.driveService.saveLocalBackup(widget.claimData);
+      // A failed validation means the form was never committed, so the pending
+      // edit is still uncommitted even though the upload succeeded.
+      if (masterSaved) _markClean();
+      if (result.success) {
+        setState(() => _syncStatus = 'Synced to Drive');
+        _showSnack('Uploaded to Drive');
+      } else {
+        setState(() => _syncStatus = 'Sync failed: ${result.error}');
+        _showSnack('Upload failed: ${result.error}');
+      }
+    } finally {
+      setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _backupAllMonths() async {
+    await _flushPendingSave();
+    setState(() => _syncing = true);
+    try {
+      final (ok, total) = await widget.driveService.uploadAllMonths();
+      if (!mounted) return;
+      setState(() => _syncStatus = 'Backed up $ok of $total months');
+      _showSnack('Backed up $ok of $total months');
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  /// Human timestamp used inside the reconcile dialog, e.g. '20 Oct, 2:31 PM'.
+  String _fmtTime(DateTime t) => DateFormat('d MMM, h:mm a').format(t);
+
+  /// Choices:
+  ///  - both sides exist -> dialog with real timestamps, the newer side
+  ///    rendered as the default action;
+  ///  - only one side exists -> that side is the choice, silently;
+  ///  - neither exists -> null (caller decides what a missing month means).
+  Future<String?> _showSyncConflictDialog({
+    required DateTime? localTime,
+    required DateTime? driveTime,
+  }) async {
+    if (localTime == null && driveTime == null) return null;
+    if (driveTime == null) return 'local';
+    if (localTime == null) return 'drive';
+    final localNewer = localTime.isAfter(driveTime);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sync conflict'),
+        content: Text(
+          'This month exists on this device and on Drive.\n\n'
+          'On this device: saved ${_fmtTime(localTime)}\n'
+          'On Drive: synced ${_fmtTime(driveTime)}\n\n'
+          'Keep the newer copy — the other one is backed up as a conflict '
+          'file, so neither choice can destroy data.',
+        ),
+        actions: localNewer
+            ? [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, 'drive'),
+                  child: Text('Use Drive (synced ${_fmtTime(driveTime)})'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, 'local'),
+                  child: Text('Keep device copy (saved ${_fmtTime(localTime)})'),
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, 'local'),
+                  child: Text('Keep device copy (saved ${_fmtTime(localTime)})'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, 'drive'),
+                  child: Text('Use Drive (synced ${_fmtTime(driveTime)})'),
+                ),
+              ],
+      ),
+    );
+  }
+
+  /// Puts the current month's local copy behind a conflict backup before a
+  /// destructive fetch-from-Drive can run. Cheap, silent, and it is the
+  /// direct fix for the v1 incident where 'Fetch from Drive' replaced fresher
+  /// device edits with a stale cloud copy (which the auto-save then wrote
+  /// over the local backup too).
+  Future<void> _guardLocalBeforeDownload(String currentMonth) async {
+    await widget.driveService.createConflictBackup(month: currentMonth);
+  }
+
+  /// Shared by the sign-in flow and the manual Download button: reconcile
+  /// the current month between the local mirror and Drive with timestamps.
+  /// The losing copy is always preserved; the winning side is applied and
+  /// converged onto the other side (local wins -> uploaded, drive wins ->
+  /// saved locally).
+  Future<void> _reconcileCurrentMonth() async {
+    setState(() => _syncing = true);
+    try {
+      final currentMonth = MasterData.monthKey(_selectedYear, _selectedMonth);
+      final localTime = await widget.driveService
+          .localBackupModifiedTime(month: currentMonth);
+      final driveTime = await widget.driveService
+          .driveModifiedTime(DriveService.monthFileName(currentMonth));
+
+      final choice = await _showSyncConflictDialog(
+        localTime: localTime,
+        driveTime: driveTime,
+      );
+      if (!mounted) return;
+
+      if (choice == 'drive') {
+        // Drive wins, but the device copy is preserved first so the fetch
+        // can never destroy local work (the v1 incident class).
+        await _guardLocalBeforeDownload(currentMonth);
+        final done = await widget.driveService.downloadClaim(
+          target: widget.claimData,
+          fileName: DriveService.monthFileName(currentMonth),
+        );
+        if (done.success) {
+          _applyLoadedClaim(widget.claimData);
+          if (mounted) {
+            setState(() => _syncStatus = 'Loaded Drive copy');
+            _showSnack('Loaded Drive copy (device copy backed up)');
+          }
+          return;
+        }
+        if (mounted) _showSnack('Download failed: ${done.error}');
+        return;
+      }
+
+      if (choice == 'local') {
+        // Device copy wins for this month; commit any pending form edit
+        // first so what gets uploaded is what the user is looking at, then
+        // upload it so both sides hold the same data. Other months converge
+        // through the auto-upload as their months are opened.
+        await _flushPendingSave();
+        final result = await widget.driveService.uploadClaim(widget.claimData);
+        if (mounted) {
+          setState(() => _syncStatus =
+              result.success ? 'Synced to Drive' : 'Sync failed: ${result.error}');
+          _showSnack(result.success
+              ? 'Synced to Drive'
+              : 'Upload failed: ${result.error}');
+        }
+        return;
+      }
+
+      // choice == null: nothing stored for this month on either side. Offer
+      // any older Drive month (the beyond-12-months edge), otherwise push
+      // the fresh claim up so the account starts converging.
+      final picked = await _pickMonthFileFromDrive();
+      if (picked != null) {
+        final done = await widget.driveService.downloadClaim(
+          target: widget.claimData,
+          fileName: picked,
+        );
+        if (done.success) {
+          _applyLoadedClaim(widget.claimData);
+          if (mounted) _showSnack('Loaded ${picked.replaceAll('.json', '')}');
+          return;
+        }
+        if (mounted) _showSnack('Download failed: ${done.error}');
+        return;
+      }
+      final result = await widget.driveService.uploadClaim(widget.claimData);
+      _refreshSavedMonths();
+      if (mounted) {
+        setState(() => _syncStatus =
+            result.success ? 'Synced to Drive' : 'Sync failed: ${result.error}');
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Future<String?> _pickMonthFileFromDrive() async {
+    final files = await widget.driveService.listDriveFiles();
+    final monthFiles = [
+      for (final name in files)
+        if (DriveService.monthKeyFromFileName(name) != null) name,
+    ];
+    if (monthFiles.isEmpty) return null;
+    if (!mounted) return null;
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Select month'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: monthFiles
+                .map((f) => ListTile(
+                      title: Text(f.replaceAll('.json', '')),
+                      onTap: () => Navigator.pop(dialogContext, f),
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Sign-in entry point. After a successful sign-in it handles three
+  /// migration shapes in order:
+  ///  1. fresh install + established Drive account  -> pull everything home;
+  ///  2. established device + empty Drive            -> push everything up;
+  ///  3. data on both sides                          ->
+  ///     [_reconcileCurrentMonth] timestamps both copies of the open month.
+  Future<void> _handleDriveSignIn() async {
+    final result = await widget.driveService.signIn();
+    if (!result.success) {
+      if (mounted) _showSnack('Sign-in failed: ${result.error}');
+      return;
+    }
+    // Catch any remaining documents-root stragglers (signIn itself promotes
+    // pseudo-account 'local' months into the signed-in user folder).
+    try {
+      await widget.driveService.migrateDocumentsRootFiles();
+    } catch (_) {}
+    setState(() {});
+
+    final localMonths = await widget.driveService.listSavedMonths();
+    final driveFiles = await widget.driveService.listDriveFiles();
+
+    if (localMonths.isEmpty && driveFiles.isEmpty) {
+      // Brand-new account with a brand-new device: nothing to reconcile.
+      return;
+    }
+
+    if (localMonths.isEmpty) {
+      // Fresh install against an established account (the v1 migration
+      // path): the local mirror is empty, so pulling every Drive month home
+      // cannot damage anything.
+      setState(() => _syncing = true);
+      try {
+        final (ok, total) =
+            await widget.driveService.downloadAllMonthsFromDrive();
+        _refreshSavedMonths();
+        if (ok > 0) {
+          final restored = await widget.driveService.loadLocalBackup();
+          if (restored != null) _applyLoadedClaim(restored);
+          if (mounted) _showSnack('Restored $ok of $total months from Drive');
+        } else if (mounted) {
+          _showSnack('Could not restore Drive months (offline?)');
+        }
+      } finally {
+        if (mounted) setState(() => _syncing = false);
+      }
+      return;
+    }
+
+    if (driveFiles.isEmpty) {
+      // Established device meeting an empty Drive (never signed in before):
+      // land the whole local history in the cloud, not just the open month.
+      setState(() => _syncing = true);
+      try {
+        final (ok, total) = await widget.driveService.uploadAllMonths();
+        if (mounted) {
+          setState(
+              () => _syncStatus = 'Backed up $ok of $total months');
+          _showSnack('Backed up $ok of $total months to Drive');
+        }
+      } finally {
+        if (mounted) setState(() => _syncing = false);
+      }
+      return;
+    }
+
+    await _reconcileCurrentMonth();
   }
 
   int get _movementCount =>
@@ -590,8 +906,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         '$newYear';
 
     // If this month was saved before, restore it instead of starting fresh.
-    final saved =
-        await _localStore.load(month: MasterData.monthKey(newYear, newMonth));
+    final saved = await widget.driveService
+        .loadLocalBackup(month: MasterData.monthKey(newYear, newMonth));
     if (saved != null) {
       widget.claimData.master = saved.master;
       _applyMaster(saved.master);
@@ -987,6 +1303,119 @@ _showSnack('Loaded $label');
                         minimumSize: const Size.fromHeight(50),
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SectionHeader(
+                title: 'Drive Sync',
+                subtitle: widget.driveService.isSignedIn
+                    ? widget.driveService.currentUser?.email ?? ''
+                    : 'Backup your data to Google Drive',
+                icon: LucideIcons.cloud,
+              ),
+              const SizedBox(height: 16),
+              _ModernCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.driveService.isSignedIn)
+                      if (_syncing)
+                        const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                icon: const Icon(LucideIcons.upload),
+                                label: const Text('Upload to Drive'),
+                                onPressed: _syncToDrive,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(LucideIcons.download),
+                                label: const Text('Download'),
+                                onPressed: _reconcileCurrentMonth,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(LucideIcons.cloudUpload),
+                          label: const Text('Back up every month'),
+                          onPressed: _backupAllMonths,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(LucideIcons.logOut),
+                          label: const Text('Sign Out'),
+                          onPressed: () {
+                            widget.driveService.signOut();
+                            setState(() {});
+                          },
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                      ]
+                    else
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: const Icon(LucideIcons.logIn),
+                        label: const Text('Sign in with Google for Drive Sync'),
+                        onPressed: _handleDriveSignIn,
+                      ),
+                    if (_syncStatus.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Text(
+                          _syncStatus,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _syncStatus.contains('fail') ||
+                                    _syncStatus.contains('error')
+                                ? scheme.error
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (widget.driveService.lastSyncTime != null) ...[
+                      const SizedBox(height: 6),
+                      Center(
+                        child: Text(
+                          'Last synced ${TimeOfDay.fromDateTime(widget.driveService.lastSyncTime!).format(context)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

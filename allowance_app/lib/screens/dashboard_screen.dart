@@ -419,6 +419,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       widget.claimData.attLocked = data.attLocked;
       widget.claimData.attOffDay = data.attOffDay;
       widget.claimData.attRotation = data.attRotation;
+      // Acting-ADM dates belong to the claim history; dropping them here
+      // would silently erase that record from hand-carried imports.
+      widget.claimData.actingAdmDates
+        ..clear()
+        ..addAll(data.actingAdmDates);
       final parsed = MasterData.parseMonthYear(data.master.month);
       widget.claimData.attShifts = AllowanceCalculator.pruneFutureShifts(
           parsed == null
@@ -463,6 +468,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _syncing = true);
     try {
       final currentMonth = MasterData.monthKey(_selectedYear, _selectedMonth);
+      // Fetching from Drive is destructive by definition — protect this
+      // device copy as a conflict backup before any download can overwrite
+      // it (the sign-in data-loss incident class).
+      await widget.driveService.createConflictBackup(month: currentMonth);
       var result = currentMonth.isNotEmpty
           ? await widget.driveService.downloadClaim(
               target: widget.claimData,
@@ -488,6 +497,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     } finally {
       setState(() => _syncing = false);
+    }
+  }
+
+  /// Human timestamp used inside the reconcile dialog, e.g. '20 Oct, 2:31 PM'.
+  String _fmtTime(DateTime t) => DateFormat('d MMM, h:mm a').format(t);
+
+  /// One-tap full backup: uploads every locally saved month to Drive, so a
+  /// never-synced device lands entirely in the cloud before migrating to v2.
+  Future<void> _backupAllMonths() async {
+    await _flushPendingSave();
+    setState(() => _syncing = true);
+    try {
+      final (ok, total) = await widget.driveService.uploadAllMonths();
+      if (!mounted) return;
+      setState(() => _syncStatus = 'Backed up $ok of $total months');
+      _showSnack('Backed up $ok of $total months');
+    } finally {
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
@@ -528,42 +555,63 @@ class _DashboardScreenState extends State<DashboardScreen>
       return;
     }
     final local = await widget.driveService.loadLocalBackup();
-    if (local != null) {
-      if (!mounted) return;
-      final useLocal = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Local Backup Found'),
-          content: const Text('Load local backup or fetch from Drive?'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Fetch from Drive')),
-            TextButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Load Local')),
-          ],
-        ),
-      );
-      if (useLocal == true) {
-        _applyMaster(local.master);
-        widget.claimData.movements
-          ..clear()
-          ..addAll(local.movements);
-        widget.claimData.attShifts = local.attShifts;
-        widget.claimData.attManualDates = local.attManualDates;
-        widget.claimData.attLocked = local.attLocked;
-        widget.claimData.attOffDay = local.attOffDay;
-        widget.claimData.attRotation = local.attRotation;
-        widget.onDataChanged();
-        setState(() {});
-        _markClean();
-        _showSnack('Loaded local backup');
-      } else {
-        await _syncFromDrive();
-      }
+    if (local == null) {
+      setState(() {});
+      return;
     }
-    setState(() {});
+    // Timestamped reconcile with 'Load Local' as the default action: the
+    // device copy is normally fresher here, because Drive only updates when
+    // a previous upload succeeded, and choosing 'Fetch from Drive' used to
+    // replace current edits with the stale cloud copy (lost data).
+    final localTime = await widget.driveService.localBackupModifiedTime();
+    final driveTime = await widget.driveService
+        .driveModifiedTime(DriveService.fileNameFor(widget.claimData));
+    if (!mounted) return;
+    final useLocal = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Data found on device and Drive'),
+        content: Text(
+          'This month exists on this device and on Drive.\n\n'
+          'On this device: ${localTime != null ? _fmtTime(localTime) : 'unknown'}\n'
+          'On Drive: ${driveTime != null ? _fmtTime(driveTime) : 'never synced'}\n\n'
+          'If unsure, keep this device. Fetching replaces what you see with '
+          'the Drive copy — this device copy is backed up first either way.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Fetch from Drive')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(
+                  'Load local (saved ${localTime != null ? _fmtTime(localTime) : 'now'})')),
+        ],
+      ),
+    );
+    if (useLocal == true) {
+      _applyMaster(local.master);
+      widget.claimData.movements
+        ..clear()
+        ..addAll(local.movements);
+      widget.claimData.attShifts = local.attShifts;
+      widget.claimData.attManualDates = local.attManualDates;
+      widget.claimData.attLocked = local.attLocked;
+      widget.claimData.attOffDay = local.attOffDay;
+      widget.claimData.attRotation = local.attRotation;
+      widget.claimData.actingAdmDates
+        ..clear()
+        ..addAll(local.actingAdmDates);
+      widget.onDataChanged();
+      setState(() {});
+      _markClean();
+      _showSnack('Loaded local backup');
+    } else {
+      // Fetching replaces this device data with Drive's copy — protect the
+      // device copy as a conflict backup before overwriting anything.
+      await widget.driveService.createConflictBackup();
+      await _syncFromDrive();
+    }
   }
 
   int get _movementCount =>
@@ -1177,6 +1225,15 @@ _showSnack('Loaded $label');
                             widget.driveService.signOut();
                             setState(() {});
                           },
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(LucideIcons.cloudUpload),
+                          label: const Text('Back up every month'),
+                          onPressed: _backupAllMonths,
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
                           ),

@@ -7,25 +7,26 @@ import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_shared/models/movement.dart';
 import 'package:allowance_app_v2/screens/dashboard_screen.dart';
-import 'package:allowance_app_v2/services/local_store.dart';
+import 'package:allowance_app_v2/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 
-/// In-memory [LocalStore] that never touches path_provider or the file system,
-/// so month switching is deterministic under the widget test's fake async.
-/// `save` snapshots the claim (serialisation round-trip), so assertions on
-/// flushed months observe what was actually written, not a live alias.
-class _FakeLocalStore extends LocalStore {
+/// In-memory [DriveService] subclass whose operations never touch the
+/// file system, so month switching is deterministic under the widget test's
+/// fake async. `saveLocalBackup` snapshots the claim (serialisation
+/// round-trip), so assertions on flushed months observe what was actually
+/// written, not a live alias.
+class _FakeDriveService extends DriveService {
   final Map<String, ClaimData> saved = {};
 
   @override
-  Future<ClaimData?> load({String? month}) async => saved[month];
+  Future<ClaimData?> loadLocalBackup({String? month}) async => saved[month];
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
 
   @override
-  Future<String> save(ClaimData data) async {
+  Future<String> saveLocalBackup(ClaimData data) async {
     saved[data.master.month] = ClaimData.fromJson(
         jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>);
     return 'fake';
@@ -63,7 +64,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
         ),
       ),
     ));
@@ -112,7 +113,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: _FakeLocalStore(),
+          driveService: _FakeDriveService(),
         ),
       ),
     ));
@@ -137,7 +138,7 @@ void main() {
 
   testWidgets('changing to a saved month auto-loads the saved claim',
       (tester) async {
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     final saved = ClaimData(
       master: MasterData(
         month: '2026-08',
@@ -174,7 +175,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: store,
+          driveService: store,
         ),
       ),
     ));
@@ -196,7 +197,7 @@ void main() {
 
   testWidgets('pending master edits flush into the old month before switching',
       (tester) async {
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     final claim = ClaimData(
       master: MasterData(
         month: '2026-09',
@@ -215,7 +216,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: store,
+          driveService: store,
         ),
       ),
     ));
@@ -256,7 +257,7 @@ void main() {
 
   testWidgets('switching to a saved month flushes pending edits first, then loads',
       (tester) async {
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     final saved = ClaimData(
       master: MasterData(
         month: '2026-08',
@@ -293,7 +294,7 @@ void main() {
           themeId: ModernThemeId.modernMarine,
           onThemeChanged: (_) {},
           appVersion: '2.0.18',
-          localStore: store,
+          driveService: store,
         ),
       ),
     ));

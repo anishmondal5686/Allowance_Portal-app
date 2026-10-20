@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,41 +7,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:allowance_shared/models/claim_data.dart';
 import 'package:allowance_shared/models/master_data.dart';
 import 'package:allowance_app_v2/screens/dashboard_screen.dart';
-import 'package:allowance_app_v2/services/local_store.dart';
+import 'package:allowance_app_v2/services/drive_service.dart';
 import 'package:allowance_shared/theme/modern_theme.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 
-/// In-memory [LocalStore] so the dashboard never touches path_provider.
-/// `save` snapshots the claim (serialisation round-trip), so assertions on
-/// flushed months observe what was actually written, not a live alias.
-class _FakeLocalStore extends LocalStore {
+/// In-memory [DriveService] so the dashboard never touches the file system or
+/// Google APIs. `saveLocalBackup` snapshots the claim (serialisation
+/// round-trip), so assertions on flushed months observe what was actually
+/// written, not a live alias.
+class _FakeDriveService extends DriveService {
   final Map<String, ClaimData> saved = {};
 
   @override
-  Future<ClaimData?> load({String? month}) async => saved[month];
+  Future<ClaimData?> loadLocalBackup({String? month}) async => saved[month];
 
   @override
   Future<List<String>> listSavedMonths() async => saved.keys.toList();
 
   @override
-  Future<String> save(ClaimData data) async {
+  Future<String> saveLocalBackup(ClaimData data) async {
     saved[data.master.month] = ClaimData.fromJson(
         jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>);
     return 'fake';
   }
 }
 
-Widget _dashboard(ClaimData claim, {LocalStore? store, VoidCallback? onChanged}) {
+Widget _dashboard(ClaimData claim,
+    {DriveService? drive, VoidCallback? onChanged}) {
   return MaterialApp(
     home: Scaffold(
       body: DashboardScreen(
         key: UniqueKey(),
         claimData: claim,
+        driveService: drive ?? _FakeDriveService(),
         onDataChanged: onChanged ?? () {},
         themeId: ModernThemeId.modernMarine,
         onThemeChanged: (_) {},
-        appVersion: '2.0.36',
-        localStore: store ?? _FakeLocalStore(),
+        appVersion: '2.0.37',
       ),
     ),
   );
@@ -61,7 +63,7 @@ Finder _field(String name) => find.byWidgetPredicate(
     );
 
 /// Records `SystemNavigator.pop()` requests. The dashboard is the root route,
-/// so an exit is a platform exit request rather than a route pop —
+/// so an exit is a platform exit request rather than a route pop â€”
 /// `handlePopRoute` in binding.dart falls through to the platform whenever
 /// `maybePop` has nothing to dismiss.
 List<String> _watchExitRequests(WidgetTester tester) {
@@ -141,10 +143,10 @@ void main() {
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     var saves = 0;
     await tester.pumpWidget(
-        _dashboard(claim, store: store, onChanged: () => saves++));
+        _dashboard(claim, drive: store, onChanged: () => saves++));
     await _settle(tester);
 
     await _type(tester, 'name', 'NEW NAME');
@@ -160,9 +162,9 @@ void main() {
 
   testWidgets('the debounce window auto-commits edits without pressing back',
       (tester) async {
-    final store = _FakeLocalStore();
+    final store = _FakeDriveService();
     final claim = _claim();
-    await tester.pumpWidget(_dashboard(claim, store: store));
+    await tester.pumpWidget(_dashboard(claim, drive: store));
     await _settle(tester);
 
     await _type(tester, 'name', 'NEW NAME');
@@ -227,8 +229,8 @@ void main() {
       (tester) async {
     final exits = _watchExitRequests(tester);
     final claim = _claim();
-    final store = _FakeLocalStore();
-    await tester.pumpWidget(_dashboard(claim, store: store));
+    final store = _FakeDriveService();
+    await tester.pumpWidget(_dashboard(claim, drive: store));
     await _settle(tester);
 
     await _type(tester, 'name', 'NEW NAME');

@@ -4,6 +4,8 @@ import 'dart:io' as io;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allowance_app/services/drive_service.dart';
+import 'package:allowance_shared/models/claim_data.dart';
+import 'package:allowance_shared/models/master_data.dart';
 
 void main() {
   group('userKeyFor', () {
@@ -84,6 +86,134 @@ void main() {
         expect(remaining.where((n) => n.toLowerCase() == 'september2026.json'),
             hasLength(1));
         expect(remaining, contains('October2026.json'));
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('migrateDocumentsRootFiles', () {
+    test('copies month files from the documents root into the user folder '
+        'and leaves the originals in place', () async {
+      final userDir = await io.Directory.systemTemp.createTemp('drivestore-user');
+      final legacyDir =
+          await io.Directory.systemTemp.createTemp('drivestore-legacy');
+      try {
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}September2026.json')
+            .writeAsString(jsonEncode({'m': 'sep'}));
+        // Existing file with the same name must NOT be overwritten.
+        await io.File(
+            '${userDir.path}${io.Platform.pathSeparator}October2026.json')
+            .writeAsString(jsonEncode({'m': 'existing'}));
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}October2026.json')
+            .writeAsString(jsonEncode({'m': 'newer'}));
+        // Non-month clutter must be ignored (incl. the fallback and theme file).
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}claim.json')
+            .writeAsString(jsonEncode({'m': 'junk'}));
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}app_theme_pref')
+            .writeAsString('x');
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}notes.txt')
+            .writeAsString('x');
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}September2026'
+            ' backup 2026-10-20 1432.json')
+            .writeAsString(jsonEncode({'m': 'conflict'}));
+
+        final service = DriveService(
+          dirOverride: () async => userDir,
+          legacyDirOverride: () async => legacyDir,
+        );
+        final moved = await service
+            .migrateDocumentsRootFiles();
+
+        expect(moved, 1, reason: 'only the missing September file copies');
+        final userFiles = userDir.listSync().whereType<io.File>().toList();
+        expect(userFiles.any((f) =>
+            f.uri.pathSegments.last == 'September2026.json'), isTrue);
+        expect(userFiles.any((f) =>
+            f.uri.pathSegments.last == 'October2026.json'), isTrue);
+        final kept = io.File(
+            '${userDir.path}/October2026.json'.replaceAll('/', io.Platform.pathSeparator));
+        expect(jsonDecode(kept.readAsStringSync())['m'], 'existing');
+        // Originals untouched (copy, never move).
+        expect(
+            io.File(
+                '${legacyDir.path}/September2026.json'.replaceAll('/', io.Platform.pathSeparator))
+                .existsSync(),
+            isTrue);
+      } finally {
+        await userDir.delete(recursive: true);
+        await legacyDir.delete(recursive: true);
+      }
+    });
+
+    test('loadLocalBackup adopts an un-migrated documents-root month file',
+        () async {
+      final userDir = await io.Directory.systemTemp.createTemp('drivestore-user');
+      final legacyDir =
+          await io.Directory.systemTemp.createTemp('drivestore-legacy');
+      try {
+        final claim = ClaimData(
+          master: MasterData(
+            month: '2026-08',
+            name: 'LEGACY USER',
+            designation: 'DOCK PILOT',
+          ),
+        );
+        await io.File(
+            '${legacyDir.path}${io.Platform.pathSeparator}'
+            'August2026.json')
+            .writeAsString(jsonEncode(claim.toJson()));
+        final service = DriveService(
+          dirOverride: () async => userDir,
+          legacyDirOverride: () async => legacyDir,
+        );
+        final loaded =
+            await service.loadLocalBackup(month: '2026-08');
+        expect(loaded?.master.name, 'LEGACY USER');
+        // The fallback copies the file into the user folder for later loads.
+        expect(
+            io.File(
+                '${userDir.path}/August2026.json'
+                    .replaceAll('/', io.Platform.pathSeparator))
+                .existsSync(),
+            isTrue);
+      } finally {
+        await userDir.delete(recursive: true);
+        await legacyDir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('createConflictBackup', () {
+    test('writes a sibling backup file that listSavedMonths ignores',
+        () async {
+      final dir = await io.Directory.systemTemp.createTemp('drivestore');
+      try {
+        final data = ClaimData(
+          master: MasterData(
+            month: '2026-09',
+            name: 'TEST USER',
+            designation: 'DOCK PILOT',
+          ),
+        );
+        final service = DriveService(dirOverride: () async => dir);
+        await service.saveLocalBackup(data);
+        final backupPath = await service.createConflictBackup(month: '2026-09');
+        expect(backupPath, isNotNull);
+        final months = await service.listSavedMonths();
+        expect(months, ['2026-09'],
+            reason: 'conflict backups must stay out of the month history');
+        final backup = io.File(backupPath!);
+        expect(backup.existsSync(), isTrue);
+        expect(backup.uri.pathSegments.last, contains(' backup '));
+        // Null when nothing is on the local mirror for the month.
+        expect(await service.createConflictBackup(month: '2025-01'), isNull);
       } finally {
         await dir.delete(recursive: true);
       }
